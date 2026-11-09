@@ -30,8 +30,8 @@ public static class NativeOverlay
     private static IntPtr _fontHeader, _fontCaption, _fontLabel;
     private static IntPtr _brushBorder, _brushLine, _brushChip, _brushGold, _brushGreen, _brushPill;
     private static IntPtr _fontStat;
-    private static string Header => L.T("COFRES", "CHESTS");
-    private const string CaptionTotal = "total";
+    private static string Header => L.T("СУНДУКИ", "CHESTS");
+    private static string CaptionTotal => L.T("всего", "total");
     private static Action<int, int>? _onMoved;
     private static Action<bool>? _onLockChanged;
     private static Action<bool>? _onVisibleChanged;
@@ -85,7 +85,7 @@ public static class NativeOverlay
             }
             catch (Exception ex)
             {
-                Console.WriteLine(L.T($"Overlay no disponible: {ex.Message}", $"Overlay unavailable: {ex.Message}"));
+                Console.WriteLine(L.T($"Оверлей недоступен: {ex.Message}", $"Overlay unavailable: {ex.Message}"));
                 ready.Set();
             }
         })
@@ -215,7 +215,7 @@ public static class NativeOverlay
 
         _hwnd = CreateWindowExW(
             WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
-            wc.lpszClassName, L.T("Cofres", "Chests"), WS_POPUP,
+            wc.lpszClassName, L.T("Сундуки", "Chests"), WS_POPUP,
 
             posX, posY, w, h, IntPtr.Zero, IntPtr.Zero, hInstance, IntPtr.Zero);
         if (_hwnd == IntPtr.Zero)
@@ -336,9 +336,9 @@ public static class NativeOverlay
         {
             _onLockChanged?.Invoke(locked);
             Console.WriteLine(locked
-                ? L.T($"Overlay bloqueado: el ratón lo atraviesa. Clic en el candado{(LockHotkeyRegistered ? " o Ctrl+Mayús+L" : "")} para desbloquearlo.",
+                ? L.T($"Оверлей закреплён: мышь проходит сквозь него. Нажмите на замок{(LockHotkeyRegistered ? " или Ctrl+Shift+L" : "")}, чтобы открепить.",
                       $"Overlay locked: the mouse goes through it. Click the padlock{(LockHotkeyRegistered ? " or press Ctrl+Shift+L" : "")} to unlock it.")
-                : L.T("Overlay desbloqueado: arrastra con el botón izquierdo para moverlo; bloquéalo de nuevo con el candado.",
+                : L.T("Оверлей откреплён: тащите его левой кнопкой мыши; закрепите снова замком.",
                       "Overlay unlocked: drag it with the left mouse button; lock it again with the padlock."));
         }
     }
@@ -356,8 +356,8 @@ public static class NativeOverlay
         {
             ShowWindow(hwnd, SW_HIDE);
             Console.WriteLine(HotkeyRegistered
-                ? L.T("Overlay oculto: Ctrl+Mayús+O (desde cualquier sitio) lo vuelve a mostrar.", "Overlay hidden: Ctrl+Shift+O (from anywhere) shows it again.")
-                : L.T("Overlay oculto: usa el botón Overlay de la ventana para volver a mostrarlo.", "Overlay hidden: use the Overlay button in the window to show it again."));
+                ? L.T("Оверлей скрыт: Ctrl+Shift+O (работает везде) покажет его снова.", "Overlay hidden: Ctrl+Shift+O (from anywhere) shows it again.")
+                : L.T("Оверлей скрыт: покажите его снова кнопкой «Оверлей» в окне.", "Overlay hidden: use the Overlay button in the window to show it again."));
         }
     }
 

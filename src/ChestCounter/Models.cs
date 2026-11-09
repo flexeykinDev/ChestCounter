@@ -31,7 +31,7 @@ public sealed class TreasureFind
     public bool TimeExact { get; set; }
     /// <summary>True when the source chest was destroyed rather than opened.</summary>
     public bool SourceDestroyed { get; set; }
-    public string SourceLabel => SourceDestroyed ? $"{L.Name(SourceKind)} ({L.T("destruido", "destroyed")})" : L.Name(SourceKind);
+    public string SourceLabel => SourceDestroyed ? $"{L.Name(SourceKind)} ({L.T("разрушен", "destroyed")})" : L.Name(SourceKind);
     /// <summary>When it was obtained (replay seconds). Exact for golden chests, estimated otherwise.</summary>
     public float? ObtainedAtSeconds { get; set; }
     /// <summary>Kind of container / interaction it came from (Chest, Loot cannon...).</summary>
@@ -75,8 +75,8 @@ public sealed class MatchRecord
 
 public sealed class Config
 {
-    /// <summary>Idioma de la interfaz. La aplicación solo está en español: se guarda por compatibilidad.</summary>
-    public string? Language { get; set; } = "es";
+    /// <summary>Interface language chosen in the settings: "ru", "en", or null (follow Windows).</summary>
+    public string? Language { get; set; }
 
     /// <summary>Selected profile (Epic id or name of the account the player plays on); null = most recent one.</summary>
     public string? Profile { get; set; }
@@ -85,8 +85,8 @@ public sealed class Config
     /// <summary>Open the tool automatically when Fortnite starts (invisible standby process started with Windows).</summary>
     public bool StartWithFortnite { get; set; }
 
-    /// <summary>"prompt" (offer new versions), "auto" (install them) or "off" (never check GitHub).</summary>
-    public string UpdateMode { get; set; } = "prompt";
+    /// <summary>Local page for OBS (http://localhost:port/, 127.0.0.1 only). Off by default.</summary>
+    public bool ObsEnabled { get; set; }
     public bool OpenReportOnStart { get; set; } = true;
     public int? OverlayX { get; set; }
     public int? OverlayY { get; set; }
@@ -236,10 +236,10 @@ public sealed class Store
         }
         : new()
         {
-            ["DelilahPrize:dpid_item1"] = "Guanteletes de A$AP Rocky de oro macizo (pico) ?",
-            ["DelilahPrize:dpid_item2"] = "Plunder in Paradise (pantalla de carga)",
-            ["DelilahPrize:dpid_item3"] = "Mercedes-AMG G 63 (vehículo) ?",
-            ["DelilahPrize:dpid_item4"] = "No Trespassing (pista musical)",
+            ["DelilahPrize:dpid_item1"] = "Перчатки A$AP Rocky из чистого золота (кирка) ?",
+            ["DelilahPrize:dpid_item2"] = "Plunder in Paradise (экран загрузки)",
+            ["DelilahPrize:dpid_item3"] = "Mercedes-AMG G 63 (транспорт) ?",
+            ["DelilahPrize:dpid_item4"] = "No Trespassing (музыка)",
         };
 
     public void LoadPrizeNames()

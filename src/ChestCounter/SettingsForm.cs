@@ -11,9 +11,6 @@ namespace ChestCounter;
 [SupportedOSPlatform("windows")]
 public sealed class SettingsForm : Form
 {
-    private static readonly string[] UpdateLabels = { L.T("Preguntar", "Ask"), L.T("Automáticas", "Automatic"), L.T("Nunca", "Never") };
-    private static readonly string[] UpdateModes = { "prompt", "auto", "off" };
-
     // Misma rejilla que la ventana principal: columna izquierda y derecha.
     private const int LeftX = 15, LeftW = 267, RightX = 297, RightW = 280;
     private const int MaxInitial = 1_000_000;
@@ -21,7 +18,10 @@ public sealed class SettingsForm : Form
     private readonly Monitor _monitor;
     private readonly ToggleSwitch _fortnite;
     private readonly ToggleSwitch _report;
-    private readonly PillButton[] _updates = new PillButton[UpdateModes.Length];
+    private readonly ToggleSwitch _obsToggle;
+    private Label _obsState = null!;
+    private TextBox _obsField = null!;
+    private PillButton _obsCopy = null!;
     private readonly TextBox _folder;
     private readonly TextBox _initial;
     private bool _loading;
@@ -31,7 +31,7 @@ public sealed class SettingsForm : Form
         _monitor = monitor;
         var config = monitor.Config;
 
-        Text = L.T("Ajustes", "Settings");
+        Text = L.T("Настройки", "Settings");
         AutoScaleMode = AutoScaleMode.Dpi;
         AutoScaleDimensions = new SizeF(96, 96);
         Font = Theme.Text();
@@ -46,17 +46,39 @@ public sealed class SettingsForm : Form
         Icon = AppIcon.Load();
 
         // Cabecera, como en la ventana principal.
-        Lbl(this, L.T("AJUSTES", "SETTINGS"), 8.5f, FontStyle.Bold, Theme.Cyan, new Point(LeftX, 14), new Size(200, 18));
-        Lbl(this, L.T($"Versión {AppInfo.VersionText}", $"Version {AppInfo.VersionText}"), 8.0f, FontStyle.Regular, Theme.Muted,
-            new Point(RightX, 13), new Size(RightW, 18), ContentAlignment.TopRight);
+        Lbl(this, L.T("НАСТРОЙКИ", "SETTINGS"), 8.5f, FontStyle.Bold, Theme.Cyan, new Point(LeftX, 14), new Size(200, 18));
+        Lbl(this, L.T($"Версия {AppInfo.VersionText}", $"Version {AppInfo.VersionText}"), 8.0f, FontStyle.Regular, Theme.Muted,
+            new Point(RightX, 13), new Size(RightW - 96, 18), ContentAlignment.TopRight);
+
+        // Language: RU / EN, applied at the next start.
+        foreach (var (code, x) in new[] { ("ru", RightX + RightW - 88), ("en", RightX + RightW - 42) })
+        {
+            var on = L.En == (code == "en");
+            var pill = new PillButton
+            {
+                Text = code.ToUpperInvariant(), Location = new Point(x, 9), Size = new Size(42, 24), Radius = 9, Font = Theme.Text(8f, FontStyle.Bold),
+                BackColor = on ? Theme.Accent : Theme.Panel, HoverColor = on ? Theme.AccentHover : Theme.PanelHover, ForeColor = on ? Theme.AccentInk : Theme.Ink,
+            };
+            pill.Click += (_, _) =>
+            {
+                if (L.En == (code == "en"))
+                {
+                    return;
+                }
+                _monitor.Change(c => c.Language = code);
+                MessageBox.Show(this, code == "en" ? "The language changes after a restart of the counter." : "Язык сменится после перезапуска счётчика.",
+                    "ChestCounter", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            };
+            Controls.Add(pill);
+        }
 
         // ---- Columna izquierda ---------------------------------------------------------------
 
         // Inicio: dos interruptores.
         var start = AddCard(LeftX, 40, LeftW, 100, 16);
-        CardTitle(start, L.T("Inicio", "Startup"));
-        _fortnite = AddToggleRow(start, L.T("Abrir con Fortnite", "Open with Fortnite"),
-            L.T("Cuenta tus partidas sin pensar en ello", "Counts your matches without thinking about it"), 24, config.StartWithFortnite);
+        CardTitle(start, L.T("Запуск", "Startup"));
+        _fortnite = AddToggleRow(start, L.T("Открывать с Fortnite", "Open with Fortnite"),
+            L.T("Считает матчи без лишних действий", "Counts your matches without thinking about it"), 24, config.StartWithFortnite);
         _fortnite.CheckedChanged += (_, _) =>
         {
             if (_loading)
@@ -69,43 +91,42 @@ public sealed class SettingsForm : Form
                 _fortnite.Checked = !_fortnite.Checked;
                 _loading = false;
                 MessageBox.Show(this,
-                    L.T("No se puede desde aquí: abre el contador con ChestCounter.exe.", "Not possible from here: open the counter with ChestCounter.exe."),
-                    L.T("Ajustes", "Settings"), MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    L.T("Отсюда нельзя: откройте счётчик через ChestCounter.exe.", "Not possible from here: open the counter with ChestCounter.exe."),
+                    L.T("Настройки", "Settings"), MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         };
-        _report = AddToggleRow(start, L.T("Abrir el informe al iniciar", "Open the report at startup"), null, 64, config.OpenReportOnStart);
+        _report = AddToggleRow(start, L.T("Открывать отчёт при запуске", "Open the report at startup"), null, 64, config.OpenReportOnStart);
         _report.CheckedChanged += (_, _) => { if (!_loading) _monitor.Change(c => c.OpenReportOnStart = _report.Checked); };
 
-        // Actualizaciones: tres píldoras.
-        var updates = AddCard(LeftX, 149, LeftW, 74, 14);
-        CardTitle(updates, L.T("Actualizaciones", "Updates"));
-        var pillW = (LeftW - 26 - 2 * 6) / 3;
-        for (var i = 0; i < UpdateModes.Length; i++)
+        // Local OBS page: off by default, only reachable from this PC.
+        var net = AddCard(LeftX, 149, LeftW, 74, 14);
+        CardTitle(net, L.T("Сеть", "Network"));
+        _obsToggle = AddToggleRow(net, L.T("Страница для OBS", "OBS page"),
+            L.T("Только на этом ПК (127.0.0.1)", "This PC only (127.0.0.1)"), 28, config.ObsEnabled);
+        _obsToggle.CheckedChanged += (_, _) =>
         {
-            var index = i;
-            var pill = new PillButton { Text = UpdateLabels[i], Location = new Point(13 + i * (pillW + 6), 30), Size = new Size(pillW, 32), Radius = 10, Font = Theme.Text(8.5f, FontStyle.Bold) };
-            pill.Click += (_, _) => SelectUpdateMode(index, save: true);
-            updates.Controls.Add(pill);
-            _updates[i] = pill;
-        }
-        var mode = Array.IndexOf(UpdateModes, config.UpdateMode);
-        SelectUpdateMode(mode < 0 ? 0 : mode, save: false);
+            if (!_loading)
+            {
+                _monitor.SetObsEnabled(_obsToggle.Checked);
+                RefreshObs();
+            }
+        };
 
         // Carpeta de replays y datos.
         var folderCard = AddCard(LeftX, 232, LeftW, 94, 14);
-        CardTitle(folderCard, L.T("Carpeta de replays", "Replays folder"));
+        CardTitle(folderCard, L.T("Папка реплеев", "Replays folder"));
         _folder = AddField(folderCard, new Point(13, 26), LeftW - 26 - 72, config.DemosFolder);
-        var browse = new PillButton { Text = L.T("Cambiar", "Change"), Location = new Point(LeftW - 13 - 66, 26), Size = new Size(66, 30), Radius = 10, Font = Theme.Text(8.5f, FontStyle.Bold) };
+        var browse = new PillButton { Text = L.T("Изменить", "Change"), Location = new Point(LeftW - 13 - 66, 26), Size = new Size(66, 30), Radius = 10, Font = Theme.Text(8.5f, FontStyle.Bold) };
         browse.Click += (_, _) => ChooseFolder();
         folderCard.Controls.Add(browse);
-        Lbl(folderCard, L.T("Tus datos se guardan en ", "Your data is saved in ") + store.Folder,
+        Lbl(folderCard, L.T("Данные хранятся в ", "Your data is saved in ") + store.Folder,
             7.5f, FontStyle.Regular, Theme.Muted, new Point(13, 62), new Size(LeftW - 26, 28));
 
         // ---- Columna derecha -----------------------------------------------------------------
 
         // Cofres de antes del contador: cifra grande en ámbar, editable, con − / +.
         var initial = AddCard(RightX, 40, RightW, 100, 16);
-        CardTitle(initial, L.T("Cofres antes del contador", "Chests before the counter"));
+        CardTitle(initial, L.T("Сундуки до счётчика", "Chests before the counter"));
         _initial = new TextBox
         {
             BorderStyle = BorderStyle.None,
@@ -134,45 +155,48 @@ public sealed class SettingsForm : Form
         };
         var profileName = monitor.ShownProfileName;
         Lbl(initial, profileName != null
-                ? L.T($"estimado · se suma al total de {profileName}", $"estimate · added to {profileName}'s total")
-                : L.T("estimado · se suma a tu total", "estimate · added to your total"),
+                ? L.T($"оценка · добавляется к итогу {profileName}", $"estimate · added to {profileName}'s total")
+                : L.T("оценка · добавляется к вашему итогу", "estimate · added to your total"),
             8.0f, FontStyle.Regular, Theme.Muted, new Point(16, 74), new Size(RightW - 70, 16));
 
         // OBS: dirección y estado.
         var obsCard = AddCard(RightX, 149, RightW, 74, 14);
-        CardTitle(obsCard, L.T("Overlay para OBS", "Overlay for OBS"));
-        var obsUrl = ObsServer.Url;
+        CardTitle(obsCard, L.T("Оверлей для OBS", "Overlay for OBS"));
         var stateCard = new Card { Location = new Point(RightW - 13 - 70, 6), Size = new Size(70, 18), Radius = 9, BackColor = Theme.Panel };
-        Lbl(stateCard, obsUrl != null ? L.T("● ACTIVO", "● ON") : L.T("● NO", "● OFF"), 7.0f, FontStyle.Bold,
-            obsUrl != null ? Theme.Mint : Theme.Red, new Point(0, 0), new Size(70, 18), ContentAlignment.MiddleCenter);
+        _obsState = Lbl(stateCard, "", 7.0f, FontStyle.Bold, Theme.Red, new Point(0, 0), new Size(70, 18), ContentAlignment.MiddleCenter);
         obsCard.Controls.Add(stateCard);
-        var obs = AddField(obsCard, new Point(13, 30), RightW - 26 - 72, obsUrl ?? L.T("Puerto ocupado", "Port in use"));
-        var copy = new PillButton { Text = L.T("Copiar", "Copy"), Location = new Point(RightW - 13 - 66, 30), Size = new Size(66, 30), Radius = 10, Font = Theme.Text(8.5f, FontStyle.Bold), Enabled = obsUrl != null };
-        copy.Click += (_, _) =>
+        _obsField = AddField(obsCard, new Point(13, 30), RightW - 26 - 72, "");
+        _obsCopy = new PillButton { Text = L.T("Копировать", "Copy"), Location = new Point(RightW - 13 - 66, 30), Size = new Size(66, 30), Radius = 10, Font = Theme.Text(8.5f, FontStyle.Bold) };
+        _obsCopy.Click += (_, _) =>
         {
+            if (ObsServer.Url is not { } url)
+            {
+                return;
+            }
             try
             {
-                Clipboard.SetText(obsUrl!);
-                copy.Text = "✓";
+                Clipboard.SetText(url);
+                _obsCopy.Text = "✓";
             }
             catch
             {
-                obs.Focus();
-                obs.SelectAll();
+                _obsField.Focus();
+                _obsField.SelectAll();
             }
         };
-        obsCard.Controls.Add(copy);
+        obsCard.Controls.Add(_obsCopy);
+        RefreshObs();
 
         // Atajos del overlay.
         var keys = AddCard(RightX, 232, RightW, 45, 12);
-        Lbl(keys, L.T("Atajos del overlay", "Overlay shortcuts"), 7.5f, FontStyle.Regular, Theme.Muted, new Point(13, 6), new Size(RightW - 26, 13));
-        Lbl(keys, L.T("Ctrl+Mayús+O mostrar  ·  Ctrl+Mayús+L fijar", "Ctrl+Shift+O show  ·  Ctrl+Shift+L lock"),
+        Lbl(keys, L.T("Горячие клавиши оверлея", "Overlay shortcuts"), 7.5f, FontStyle.Regular, Theme.Muted, new Point(13, 6), new Size(RightW - 26, 13));
+        Lbl(keys, L.T("Ctrl+Shift+O показать  ·  Ctrl+Shift+L закрепить", "Ctrl+Shift+O show  ·  Ctrl+Shift+L lock"),
             8.0f, FontStyle.Bold, Theme.Ink, new Point(13, 21), new Size(RightW - 26, 18));
 
         // Cerrar, en el sitio de los botones de la ventana principal.
         var close = new PillButton
         {
-            Text = L.T("Cerrar", "Close"),
+            Text = L.T("Закрыть", "Close"),
             Location = new Point(RightX, 286),
             Size = new Size(RightW, 40),
             Radius = 12,
@@ -193,21 +217,14 @@ public sealed class SettingsForm : Form
         Theme.Chrome(Handle);
     }
 
-    private void SelectUpdateMode(int index, bool save)
+    private void RefreshObs()
     {
-        for (var i = 0; i < _updates.Length; i++)
-        {
-            var on = i == index;
-            _updates[i].BackColor = on ? Theme.Accent : Theme.Panel;
-            _updates[i].HoverColor = on ? Theme.AccentHover : Theme.PanelHover;
-            _updates[i].ForeColor = on ? Theme.AccentInk : Theme.Ink;
-            _updates[i].Invalidate();
-        }
-        if (save)
-        {
-            var chosen = UpdateModes[index];
-            _monitor.Change(c => c.UpdateMode = chosen);
-        }
+        var url = ObsServer.Url;
+        _obsState.Text = url != null ? L.T("● ВКЛ", "● ON") : L.T("● ВЫКЛ", "● OFF");
+        _obsState.ForeColor = url != null ? Theme.Mint : Theme.Red;
+        _obsField.Text = url ?? (_obsToggle.Checked ? L.T("Порт занят", "Port in use") : L.T("Выключено в «Сеть»", "Off under Network"));
+        _obsCopy.Enabled = url != null;
+        _obsCopy.Text = L.T("Копировать", "Copy");
     }
 
     private int ParseInitial() =>
@@ -223,7 +240,7 @@ public sealed class SettingsForm : Form
     {
         using var dialog = new FolderBrowserDialog
         {
-            Description = L.T("Carpeta de replays de Fortnite", "Fortnite replays folder"),
+            Description = L.T("Папка реплеев Fortnite", "Fortnite replays folder"),
             UseDescriptionForTitle = true,
             SelectedPath = Directory.Exists(_folder.Text) ? _folder.Text : "",
         };

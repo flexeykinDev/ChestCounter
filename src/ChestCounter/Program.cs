@@ -45,11 +45,11 @@ internal static class Program
             ErrorLog.Write("Unexpected error", e.ExceptionObject);
             if (cliMode)
             {
-                Console.WriteLine(L.T("Error inesperado: ", "Unexpected error: ") + e.ExceptionObject);
+                Console.WriteLine(L.T("Непредвиденная ошибка: ", "Unexpected error: ") + e.ExceptionObject);
             }
             else
             {
-                MessageBox.Show(L.T("Error inesperado. Los detalles están en errors.log, en la carpeta de datos.",
+                MessageBox.Show(L.T("Непредвиденная ошибка. Подробности в errors.log в папке данных.",
                         "Unexpected error. The details are in errors.log, in the data folder.") + "\n\n" + e.ExceptionObject,
                     "ChestCounter", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
@@ -60,31 +60,31 @@ internal static class Program
         var once = false;
         var reset = false;
         var auto = false;          // abierto por el proceso en espera cuando Fortnite arranca: se cierra solo al cerrar Fortnite
-        var afterUpdate = false;   // reiniciado por el actualizador: espera a que la instancia anterior termine
         string? previewPath = null;
+        string? langArg = null;
         for (var i = 0; i < args.Length; i++)
         {
             switch (args[i])
             {
                 case "--data": dataDir = args[++i]; break;
                 case "--demos": demosArg = args[++i]; break;
-                case "--lang": i++; break; // compatibilidad: el idioma lo elige Windows
+                case "--lang": langArg = args[++i]; L.Init(langArg); break;
                 case "--once": once = true; break;
                 case "--reset-config": reset = true; break;
                 case "--overlay-preview": previewPath = args[++i]; break;
                 case "--auto": auto = true; break;
-                case "--after-update": afterUpdate = true; break;
                 case "-h":
                 case "--help":
                     Console.WriteLine(L.T("""
-                        Contador de cofres de Fortnite
+                        Счётчик сундуков Fortnite
 
-                        Opciones:
-                          --demos <carpeta>   carpeta de los replays (por defecto %LOCALAPPDATA%\FortniteGame\Saved\Demos)
-                          --data <carpeta>    carpeta de los datos (por defecto %APPDATA%\ChestCounter)
-                          --once              analiza los replays terminados, muestra el resumen y sale (sin ventana)
-                          --reset-config      vuelve a mostrar las preguntas iniciales
-                          --overlay-preview <archivo.png>   guarda vistas previas del overlay y sale
+                        Параметры:
+                          --demos <папка>     папка реплеев (по умолчанию %LOCALAPPDATA%\FortniteGame\Saved\Demos)
+                          --data <папка>      папка данных (по умолчанию %APPDATA%\ChestCounter)
+                          --once              разобрать готовые реплеи, показать итог и выйти (без окна)
+                          --reset-config      снова показать вопросы первого запуска
+                          --lang ru|en        язык интерфейса
+                          --overlay-preview <файл.png>   сохранить превью оверлея и выйти
                         """, """
                         Fortnite Chest Counter
 
@@ -101,17 +101,18 @@ internal static class Program
 
         dataDir ??= Store.DefaultFolder();
         var store = new Store(dataDir);
+        L.Init(langArg ?? store.LoadConfig()?.Language);
         ErrorLog.FilePath = store.ErrorLogPath;
 
         // Una sola instancia por carpeta de datos: dos contarían las mismas partidas.
         using var instance = new Mutex(false, AppInfo.InstanceMutexFor(dataDir));
-        if (previewPath == null && !AcquireInstance(instance, afterUpdate ? TimeSpan.FromSeconds(20) : TimeSpan.Zero))
+        if (previewPath == null && !AcquireInstance(instance, TimeSpan.Zero))
         {
             if (auto)
             {
                 return 0; // abierto con Fortnite cuando ya estaba abierto: nada que hacer
             }
-            var alreadyOpen = L.T("El contador de cofres ya está abierto: mira en la barra de tareas.",
+            var alreadyOpen = L.T("Счётчик сундуков уже открыт: посмотрите на панели задач.",
                 "The chest counter is already open: look in the taskbar.");
             if (cliMode)
             {
@@ -128,7 +129,6 @@ internal static class Program
         var config = reset ? null : store.LoadConfig();
         var firstRun = config == null;
         config ??= new Config();
-        config.Language = L.En ? "en" : "es";
 
         if (demosArg != null) config.DemosFolder = demosArg;
         var defaultDemos = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FortniteGame", "Saved", "Demos");
@@ -159,8 +159,8 @@ internal static class Program
                 Thread.Sleep(600);
                 var file = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(previewPath)) ?? ".", Path.GetFileNameWithoutExtension(previewPath) + suffix + ".png");
                 Console.WriteLine(NativeOverlay.Snapshot(file)
-                    ? L.T($"Vista previa: {file}", $"Preview: {file}")
-                    : L.T($"Error al capturar: {file}", $"Capture failed: {file}"));
+                    ? L.T($"Превью: {file}", $"Preview: {file}")
+                    : L.T($"Не удалось сделать снимок: {file}", $"Capture failed: {file}"));
             }
             return 0;
         }
@@ -178,7 +178,7 @@ internal static class Program
             tracker.Scan(ignoreQuietPeriod: true);
             ReportWriter.WriteAll(store, config, data);
             tracker.PrintSummary();
-            Console.WriteLine(L.T($"  Informe: {store.ReportPath}", $"  Report: {store.ReportPath}"));
+            Console.WriteLine(L.T($"  Отчёт: {store.ReportPath}", $"  Report: {store.ReportPath}"));
             return 0;
         }
 
@@ -186,9 +186,9 @@ internal static class Program
         if (firstRun)
         {
             MessageBox.Show(
-                L.T("Este contador cuenta tus cofres a partir de los replays de Fortnite.\n\n" +
-                    "Importante: en Fortnite activa Ajustes → Juego → Replays → Grabar replays.\n" +
-                    "Sin eso, Fortnite no guarda replays y no hay nada que contar.",
+                L.T("Этот счётчик считает ваши сундуки по реплеям Fortnite.\n\n" +
+                    "Важно: в Fortnite включите запись повторов (Настройки → Игра → Повторы).\n" +
+                    "Без этого Fortnite не сохраняет реплеи и считать нечего.",
                     "This counter counts your chests from the Fortnite replays.\n\n" +
                     "Important: in Fortnite turn on Settings → Game → Replays → Record Replays.\n" +
                     "Without it, Fortnite saves no replays and there is nothing to count."),
@@ -197,9 +197,9 @@ internal static class Program
             var existing = tracker.UnprocessedFiles().Where(f => ReplayHeaderProbe.IsLive(f.FullName) != true).ToList();
             if (existing.Count > 0)
             {
-                var count = L.Count(existing.Count, "replay", "replays", "replay", "replays");
+                var count = L.Count(existing.Count, "реплей", "реплея", "реплеев", "replay", "replays");
                 var answer = MessageBox.Show(
-                    L.T($"Hay {count} en tu PC. ¿Contarlos también?\n\nSí: se analizan ahora.   No: solo cuentan tus próximas partidas.",
+                    L.T($"На вашем ПК {count}. Посчитать их тоже?\n\nДа: они разбираются сейчас.   Нет: считаются только следующие матчи.",
                         $"There are {count} on your PC. Count them too?\n\nYes: they are analyzed now.   No: only your next matches count."),
                     "ChestCounter", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
                 if (answer == DialogResult.No)
@@ -211,8 +211,8 @@ internal static class Program
             if (OperatingSystem.IsWindows() && AppInfo.ExePath != null)
             {
                 var withFortnite = MessageBox.Show(
-                    L.T("¿Abrir el contador automáticamente cuando empiece Fortnite?\n\n" +
-                        "Sin él, tus partidas no se cuentan. Se cierra solo al cerrar Fortnite. Lo puedes cambiar en Ajustes.",
+                    L.T("Открывать счётчик автоматически при запуске Fortnite?\n\n" +
+                        "Без этого матчи не считаются. Счётчик сам закрывается вместе с Fortnite. Это можно поменять в настройках.",
                         "Open the counter automatically when Fortnite starts?\n\n" +
                         "Without it, your matches are not counted. It closes by itself when you close Fortnite. You can change this in Settings."),
                     "ChestCounter", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes;
@@ -223,7 +223,6 @@ internal static class Program
 
         if (OperatingSystem.IsWindows())
         {
-            Updater.CleanupOld();
             if (config.StartWithFortnite)
             {
                 FortniteWatch.Apply(true, dataDir); // sigue la ruta del exe si se movió o se actualizó
@@ -231,7 +230,7 @@ internal static class Program
             if (Process.GetProcessesByName("ChestTracker") is { Length: > 0 } oldTool)
             {
                 MessageBox.Show(
-                    L.T("La versión antigua (ChestTracker.exe) sigue abierta: ciérrala, o las dos contarían a la vez.",
+                    L.T("Старая версия (ChestTracker.exe) всё ещё открыта: закройте её, иначе обе будут считать одновременно.",
                         "The old version (ChestTracker.exe) is still open: close it, otherwise both count at the same time."),
                     "ChestCounter", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 foreach (var p in oldTool) p.Dispose();
@@ -242,7 +241,7 @@ internal static class Program
         var monitor = new ChestCounter.Monitor(store, config, data, tracker, dataDir) { AutoMode = auto };
         if (reanalyzing)
         {
-            monitor.SetNotice(L.T("Nueva versión del análisis: se vuelven a leer los replays (sin duplicados).",
+            monitor.SetNotice(L.T("Новая версия разбора: реплеи читаются заново (без дублей).",
                 "New analysis version: the replays are read again (no duplicates)."));
         }
 
@@ -257,13 +256,6 @@ internal static class Program
         Application.Run(form);
         monitor.Stop();
 
-        // Nueva versión instalada: arranca el exe nuevo.
-        if (monitor.RestartAfterUpdate && AppInfo.ExePath is { } newExe)
-        {
-            try { instance.ReleaseMutex(); } catch { }
-            var restartArgs = string.Join(" ", args.Where(a => a != "--after-update").Select(a => a.Contains(' ') ? $"\"{a}\"" : a).Append("--after-update"));
-            Process.Start(new ProcessStartInfo(newExe, restartArgs) { UseShellExecute = true })?.Dispose();
-        }
         return 0;
 
         // ---- Ayudantes -----------------------------------------------------------------------------------

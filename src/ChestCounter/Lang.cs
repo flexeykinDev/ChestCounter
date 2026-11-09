@@ -3,70 +3,97 @@ using System.Globalization;
 namespace ChestCounter;
 
 /// <summary>
-/// Idioma de la aplicación: español si Windows está en español, inglés en cualquier otro caso.
-/// Los textos se escriben en línea: <c>L.T("español", "English")</c>. Los nombres guardados en data.json (tipos de
-/// cofre, objetos del tesoro) siguen en francés por compatibilidad y se traducen al mostrarlos (<see cref="Name"/>).
+/// Interface language: Russian or English. Texts are written inline: <c>L.T("русский", "English")</c>.
+/// Choice order: CHESTCOUNTER_LANG, then --lang / the settings, then Windows (English Windows = English, else Russian).
+/// Names stored in data.json (chest kinds, treasure items) stay in English and are translated when shown (<see cref="Name"/>).
 /// </summary>
 public static class L
 {
-    /// <summary>True cuando la interfaz va en inglés (Windows no está en español).</summary>
-    /// <remarks>
-    /// Para probar: la variable CHESTCOUNTER_LANG (en o es) fuerza el idioma. Sin ella, manda Windows.
-    /// </remarks>
-    public static bool En { get; } = Environment.GetEnvironmentVariable("CHESTCOUNTER_LANG") is { Length: > 0 } forced
-        ? !forced.StartsWith("es", StringComparison.OrdinalIgnoreCase)
-        : CultureInfo.CurrentUICulture.TwoLetterISOLanguageName != "es";
+    private static readonly CultureInfo Ru = CultureInfo.GetCultureInfo("ru-RU");
+    private static readonly CultureInfo EnUs = CultureInfo.GetCultureInfo("en-US");
 
-    public static CultureInfo Culture { get; } = CultureInfo.GetCultureInfo(En ? "en-US" : "es-ES");
+    /// <summary>True when the interface is in English.</summary>
+    public static bool En { get; private set; } = Detect(null);
 
-    /// <summary>Código del idioma para los atributos lang de las páginas HTML.</summary>
-    public static string Code => En ? "en" : "es";
+    /// <summary>Applies the saved or command-line choice ("ru", "en"; anything else = automatic).</summary>
+    public static void Init(string? choice) => En = Detect(choice);
 
-    public static string T(string es, string en) => En ? en : es;
+    private static bool Detect(string? choice)
+    {
+        var forced = Environment.GetEnvironmentVariable("CHESTCOUNTER_LANG") is { Length: > 0 } env ? env : choice;
+        if (forced != null && forced.StartsWith("ru", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+        if (forced != null && forced.StartsWith("en", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+        return CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en";
+    }
 
-    /// <summary>Entero sin separador de miles ("1409"): las cifras son cantidades, no importes.</summary>
+    public static CultureInfo Culture => En ? EnUs : Ru;
+
+    /// <summary>Language code for the lang attribute of the HTML pages.</summary>
+    public static string Code => En ? "en" : "ru";
+
+    public static string T(string ru, string en) => En ? en : ru;
+
+    /// <summary>Integer without thousands separator ("1409"): figures are counts, not amounts.</summary>
     public static string N(int n) => n.ToString("0", Culture);
 
-    /// <summary>"3 cofres" / "1 chest" (plural según la cifra, en el idioma actual).</summary>
-    public static string Count(int n, string esOne, string esMany, string enOne, string enMany) =>
-        $"{N(n)} {(n == 1 ? T(esOne, enOne) : T(esMany, enMany))}";
+    /// <summary>Russian plural form: 1 сундук, 2 сундука, 5 сундуков.</summary>
+    public static string Plural(int n, string one, string few, string many)
+    {
+        var n10 = Math.Abs(n) % 10;
+        var n100 = Math.Abs(n) % 100;
+        if (n10 == 1 && n100 != 11)
+        {
+            return one;
+        }
+        return n10 is >= 2 and <= 4 && n100 is < 12 or > 14 ? few : many;
+    }
 
-    /// <summary>"12.º" / "12th".</summary>
+    /// <summary>"3 сундука" / "1 chest" (plural for the number, in the current language).</summary>
+    public static string Count(int n, string ruOne, string ruFew, string ruMany, string enOne, string enMany) =>
+        $"{N(n)} {(En ? (n == 1 ? enOne : enMany) : Plural(n, ruOne, ruFew, ruMany))}";
+
+    /// <summary>"12-й" / "12th".</summary>
     public static string Ordinal(int n)
     {
         if (!En)
         {
-            return $"{n}.º";
+            return $"{n}-й";
         }
         var suffix = (n % 100) is 11 or 12 or 13 ? "th" : (n % 10) switch { 1 => "st", 2 => "nd", 3 => "rd", _ => "th" };
         return $"{n}{suffix}";
     }
 
-    /// <summary>Fecha corta + hora de una partida ("05/11 22:54" / "Nov 5 22:54").</summary>
-    public static string DateTimeShort(DateTime d) => d.ToString(En ? "MMM d HH:mm" : "dd/MM HH:mm", Culture);
+    /// <summary>Short date + time of a match ("05.11 22:54" / "Nov 5 22:54").</summary>
+    public static string DateTimeShort(DateTime d) => d.ToString(En ? "MMM d HH:mm" : "dd.MM HH:mm", Culture);
 
-    // Nombres internos guardados en data.json (en inglés) -> nombre mostrado.
-    private static readonly Dictionary<string, (string Es, string En)> Names = new(StringComparer.OrdinalIgnoreCase)
+    // Internal names stored in data.json (English) -> shown name.
+    private static readonly Dictionary<string, (string Ru, string En)> Names = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["Chest"] = ("Cofre", "Chest"),
-        ["Rare chest"] = ("Cofre raro", "Rare chest"),
-        ["Buried chest"] = ("Cofre enterrado", "Buried chest"),
-        ["Extraction / relic chest"] = ("Cofre de extracción / reliquias", "Extraction / relic chest"),
-        ["Spirit poster chest"] = ("Cofre de los carteles de espíritu", "Spirit poster chest"),
-        ["Other chest"] = ("Otro cofre", "Other chest"),
-        ["Loot cannon"] = ("Cañón de botín", "Loot cannon"),
-        ["Ammo box"] = ("Caja de munición", "Ammo box"),
-        ["Food box"] = ("Caja de comida", "Food box"),
-        ["Other container"] = ("Otro contenedor", "Other container"),
-        ["Treasure"] = ("Tesoro", "Treasure"),
-        ["Treasure (unknown type)"] = ("Tesoro (tipo desconocido)", "Treasure (unknown type)"),
-        ["Treasure gizmo"] = ("Artilugio de tesoro", "Treasure gizmo"),
-        ["Golden firework"] = ("Fuego artificial dorado", "Golden firework"),
-        ["Portable extractor"] = ("Extractor portátil", "Portable extractor"),
-        ["Spirit locator"] = ("Localizador de espíritu", "Spirit locator"),
-        ["Lucky locator"] = ("Localizador afortunado", "Lucky locator"),
-        ["Extraction accelerator"] = ("Acelerador de extracción", "Extraction accelerator"),
-        ["unknown"] = ("desconocido", "unknown"),
+        ["Chest"] = ("Сундук", "Chest"),
+        ["Rare chest"] = ("Редкий сундук", "Rare chest"),
+        ["Buried chest"] = ("Закопанный сундук", "Buried chest"),
+        ["Extraction / relic chest"] = ("Сундук извлечения / реликвий", "Extraction / relic chest"),
+        ["Spirit poster chest"] = ("Сундук с плакатами духов", "Spirit poster chest"),
+        ["Other chest"] = ("Другой сундук", "Other chest"),
+        ["Loot cannon"] = ("Пушка с добычей", "Loot cannon"),
+        ["Ammo box"] = ("Ящик с патронами", "Ammo box"),
+        ["Food box"] = ("Ящик с едой", "Food box"),
+        ["Other container"] = ("Другой контейнер", "Other container"),
+        ["Treasure"] = ("Сокровище", "Treasure"),
+        ["Treasure (unknown type)"] = ("Сокровище (неизвестный тип)", "Treasure (unknown type)"),
+        ["Treasure gizmo"] = ("Устройство сокровищ", "Treasure gizmo"),
+        ["Golden firework"] = ("Золотой фейерверк", "Golden firework"),
+        ["Portable extractor"] = ("Переносной экстрактор", "Portable extractor"),
+        ["Spirit locator"] = ("Локатор духов", "Spirit locator"),
+        ["Lucky locator"] = ("Счастливый локатор", "Lucky locator"),
+        ["Extraction accelerator"] = ("Ускоритель извлечения", "Extraction accelerator"),
+        ["unknown"] = ("неизвестно", "unknown"),
     };
 
     /// <summary>
@@ -106,6 +133,6 @@ public static class L
         {
             return stored ?? "";
         }
-        return Names.TryGetValue(Upgrade(stored), out var pair) ? (En ? pair.En : pair.Es) : stored;
+        return Names.TryGetValue(Upgrade(stored), out var pair) ? (En ? pair.En : pair.Ru) : stored;
     }
 }

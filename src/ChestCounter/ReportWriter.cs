@@ -10,17 +10,17 @@ public static class Pretty
     {
         if (string.IsNullOrEmpty(playlist))
         {
-            return L.T("modo desconocido", "unknown mode");
+            return L.T("неизвестный режим", "unknown mode");
         }
 
         var p = playlist.ToLowerInvariant();
         var parts = new List<string>();
-        if (p.Contains("habanero") || p.Contains("ranked")) parts.Add(L.T("Clasificatoria", "Ranked"));
-        if (p.Contains("nobuild")) parts.Add(L.T("Cero construcción", "Zero Build"));
+        if (p.Contains("habanero") || p.Contains("ranked")) parts.Add(L.T("Рейтинг", "Ranked"));
+        if (p.Contains("nobuild")) parts.Add(L.T("Без строительства", "Zero Build"));
         if (p.Contains("solo")) parts.Add("Solo");
-        else if (p.Contains("duo")) parts.Add(L.T("Dúo", "Duos"));
-        else if (p.Contains("trio")) parts.Add(L.T("Trío", "Trios"));
-        else if (p.Contains("squad")) parts.Add(L.T("Escuadrón", "Squads"));
+        else if (p.Contains("duo")) parts.Add(L.T("Дуо", "Duos"));
+        else if (p.Contains("trio")) parts.Add(L.T("Трио", "Trios"));
+        else if (p.Contains("squad")) parts.Add(L.T("Отряд", "Squads"));
         return parts.Count > 0 ? string.Join(" · ", parts) : playlist.Replace("Playlist_", "");
     }
 
@@ -28,15 +28,15 @@ public static class Pretty
     {
         if (m.Placement is not int place || place <= 0)
         {
-            return L.T("puesto desconocido", "unknown placement");
+            return L.T("место неизвестно", "unknown placement");
         }
         if (place == 1)
         {
-            return L.T("¡Victoria Real!", "Victory Royale!");
+            return L.T("Королевская победа!", "Victory Royale!");
         }
         var ordinal = L.Ordinal(place);
         return m.TotalPlayers is int total && total > 0
-            ? (L.En ? $"{ordinal} of {total}" : $"{ordinal} de {total}")
+            ? (L.En ? $"{ordinal} of {total}" : $"{ordinal} из {total}")
             : ordinal;
     }
 
@@ -51,13 +51,13 @@ public static class Pretty
     {
         if (f.ObtainedAtSeconds is not float t)
         {
-            return L.T("momento y origen desconocidos", "time and source unknown");
+            return L.T("время и источник неизвестны", "time and source unknown");
         }
-        var when = f.TimeExact ? $"{L.T("a las", "at")} {Clock(t)}" : $"{L.T("hacia las", "around")} {Clock(t)}";
+        var when = f.TimeExact ? $"{L.T("в", "at")} {Clock(t)}" : $"{L.T("около", "around")} {Clock(t)}";
         return f.SourceCertain ? $"{when} · {f.SourceLabel}" : $"{when} · {f.SourceLabel} ({Likely})";
     }
 
-    public static string Likely => L.T("probable", "likely");
+    public static string Likely => L.T("вероятно", "likely");
 
     public static string ItemName(string item)
     {
@@ -105,7 +105,7 @@ public static class ReportWriter
         }
         catch (Exception ex)
         {
-            Console.WriteLine(L.T($"No se pudo escribir el informe: {ex.Message}", $"Cannot write the report: {ex.Message}"));
+            Console.WriteLine(L.T($"Не удалось записать отчёт: {ex.Message}", $"Cannot write the report: {ex.Message}"));
         }
     }
 
@@ -271,8 +271,8 @@ public static class ReportWriter
         string N(int n) => n.ToString("#,0", Loc);
 
         var sb = new StringBuilder();
-        var title = L.T("Contador de cofres", "Chest Counter");
-        var updated = L.T($"Actualizado {DateTime.Now.ToString("dd/MM/yyyy HH:mm", Loc)} · en directo",
+        var title = L.T("Счётчик сундуков", "Chest Counter");
+        var updated = L.T($"Обновлено {DateTime.Now.ToString("dd.MM.yyyy HH:mm", Loc)} · в реальном времени",
             $"Updated {DateTime.Now.ToString("MMM d, yyyy HH:mm", Loc)} · live");
         var heading = player.Length > 0 ? H(player) : title;
         sb.Append($"""
@@ -283,7 +283,7 @@ public static class ReportWriter
             <title>{title}{(player.Length > 0 ? " · " + H(player) : "")}</title><style>{Style}</style></head><body><main>
             <header class="masthead">
               <div class="brand"><div class="logo">{ChestIcon}</div>
-                <div><div class="eyebrow">{(player.Length > 0 ? title : L.T("Informe", "Report"))}</div><h1>{heading}</h1></div></div>
+                <div><div class="eyebrow">{(player.Length > 0 ? title : L.T("Отчёт", "Report"))}</div><h1>{heading}</h1></div></div>
               <div class="upd"><span class="dot"></span>{updated}</div>
             </header>
             {LoadingCard(progress)}{ProfilesLine(profiles, player)}
@@ -291,21 +291,21 @@ public static class ReportWriter
 
         // Cifras clave: el total destaca; al lado, el resto.
         var initialNote = initialChests > 0
-            ? L.T($"Incluye {N(initialChests)} estimados de antes de usar la herramienta", $"Includes {N(initialChests)} estimated from before the tool")
-            : L.T("Cofres abiertos o destruidos por ti, según tus replays", "Chests you opened or destroyed, from your replays");
+            ? L.T($"Включая {N(initialChests)} (оценка) до начала подсчёта", $"Includes {N(initialChests)} estimated from before the tool")
+            : L.T("Сундуки, открытые или разрушенные вами, по вашим реплеям", "Chests you opened or destroyed, from your replays");
         sb.Append($"""
             <div class="kpis">
               <div class="kpi hero">
-                <div><div class="l">{L.T("Cofres en total", "Total chests")}</div><div class="v">{N(totalChests)}</div><div class="s">{initialNote}</div></div>
+                <div><div class="l">{L.T("Всего сундуков", "Total chests")}</div><div class="v">{N(totalChests)}</div><div class="s">{initialNote}</div></div>
                 <div class="split">
-                  <div><b>{N(session)}</b><span>{L.T("en esta sesión", "this session")}{(sessionMatches.Count > 0 ? " · " + L.Count(sessionMatches.Count, "partida", "partidas", "match", "matches") : "")}</span></div>
-                  <div><b>{N(wins)}</b><span>{L.T(wins == 1 ? "victoria real" : "victorias reales", wins == 1 ? "Victory Royale" : "Victory Royales")}</span></div>
+                  <div><b>{N(session)}</b><span>{L.T("за эту сессию", "this session")}{(sessionMatches.Count > 0 ? " · " + L.Count(sessionMatches.Count, "матч", "матча", "матчей", "match", "matches") : "")}</span></div>
+                  <div><b>{N(wins)}</b><span>{L.T(L.Plural(wins, "королевская победа", "королевские победы", "королевских побед"), wins == 1 ? "Victory Royale" : "Victory Royales")}</span></div>
                 </div>
               </div>
-              <div class="kpi"><div class="l">{L.T("Partidas", "Matches")}</div><div class="v">{N(matches.Count)}</div><div class="s">{L.T("analizadas", "analyzed")}</div></div>
-              <div class="kpi"><div class="l">{L.T("Media", "Average")}</div><div class="v acc">{avg.ToString("0.0", Loc)}</div><div class="s">{L.T("cofres por partida", "chests per match")}</div></div>
-              <div class="kpi"><div class="l">{L.T("Récord", "Best match")}</div><div class="v">{N(best)}</div><div class="s">{L.T("cofres en una partida", "chests in one match")}</div></div>
-              <div class="kpi"><div class="l">{L.T("Tesoros", "Treasures")}</div><div class="v ros">{N(treasures)}</div><div class="s">{L.T("encontrados", "found")}</div></div>
+              <div class="kpi"><div class="l">{L.T("Матчи", "Matches")}</div><div class="v">{N(matches.Count)}</div><div class="s">{L.T("разобрано", "analyzed")}</div></div>
+              <div class="kpi"><div class="l">{L.T("Среднее", "Average")}</div><div class="v acc">{avg.ToString("0.0", Loc)}</div><div class="s">{L.T("сундуков за матч", "chests per match")}</div></div>
+              <div class="kpi"><div class="l">{L.T("Рекорд", "Best match")}</div><div class="v">{N(best)}</div><div class="s">{L.T("сундуков в одном матче", "chests in one match")}</div></div>
+              <div class="kpi"><div class="l">{L.T("Сокровища", "Treasures")}</div><div class="v ros">{N(treasures)}</div><div class="s">{L.T("найдено", "found")}</div></div>
             </div>
             """);
 
@@ -318,8 +318,8 @@ public static class ReportWriter
         var activeDays = perDay.Count(v => v > 0);
         var dayAvg = activeDays > 0 ? (double)sum30 / activeDays : 0;
         sb.Append($"""
-            <section><div class="sh"><h2>{L.T("Cofres por día", "Chests per day")}</h2>
-            <span class="meta">{L.T("Últimos 30 días", "Last 30 days")} · {N(sum30)} {L.T("cofres", "chests")} · {L.Count(activeDays, "día jugado", "días jugados", "day played", "days played")}</span></div>
+            <section><div class="sh"><h2>{L.T("Сундуки по дням", "Chests per day")}</h2>
+            <span class="meta">{L.T("Последние 30 дней", "Last 30 days")} · {N(sum30)} {L.T(L.Plural(sum30, "сундук", "сундука", "сундуков"), "chests")} · {L.Count(activeDays, "игровой день", "игровых дня", "игровых дней", "day played", "days played")}</span></div>
             <div class="card pad"><div class="chart">
             <div class="yaxis"><span>{N(top)}</span><span>{N(top / 2)}</span><span>0</span></div>
             <div class="plot">
@@ -327,13 +327,13 @@ public static class ReportWriter
         if (dayAvg > 0)
         {
             var avgPct = 100.0 * dayAvg / top;
-            sb.Append($"""<div class="avg" style="bottom:{avgPct.ToString("0.##", CultureInfo.InvariantCulture)}%"><span>{L.T("media", "avg")} {dayAvg.ToString("0", Loc)}</span></div>""");
+            sb.Append($"""<div class="avg" style="bottom:{avgPct.ToString("0.##", CultureInfo.InvariantCulture)}%"><span>{L.T("среднее", "avg")} {dayAvg.ToString("0", Loc)}</span></div>""");
         }
         for (var i = 0; i < days.Count; i++)
         {
             var v = perDay[i];
             var h = 100.0 * v / top;
-            var tip = $"{days[i].ToString(L.En ? "ddd MMM d" : "ddd dd/MM", Loc)} · {L.Count(v, "cofre", "cofres", "chest", "chests")}";
+            var tip = $"{days[i].ToString(L.En ? "ddd MMM d" : "ddd dd.MM", Loc)} · {L.Count(v, "сундук", "сундука", "сундуков", "chest", "chests")}";
             var hs = h.ToString("0.##", CultureInfo.InvariantCulture);
             var tipAt = Math.Max(h, 1.5).ToString("0.##", CultureInfo.InvariantCulture);
             sb.Append($"<div class=\"col{(i == days.Count - 1 ? " today" : "")}\" aria-label=\"{H(tip)}\"><span class=\"tip\" style=\"bottom:calc({tipAt}% + 6px)\">{H(tip)}</span><div class=\"bar{(v == 0 ? " zero" : "")}\" style=\"height:{hs}%\"></div></div>");
@@ -341,8 +341,8 @@ public static class ReportWriter
         sb.Append("</div><div class=\"xaxis\">");
         for (var i = 0; i < days.Count; i++)
         {
-            var label = i == days.Count - 1 ? $"<span class=\"t\">{L.T("hoy", "today")}</span>"
-                : (days.Count - 1 - i) % 7 == 0 ? $"<span>{days[i].ToString(L.En ? "MMM d" : "dd/MM", Loc)}</span>"
+            var label = i == days.Count - 1 ? $"<span class=\"t\">{L.T("сегодня", "today")}</span>"
+                : (days.Count - 1 - i) % 7 == 0 ? $"<span>{days[i].ToString(L.En ? "MMM d" : "dd.MM", Loc)}</span>"
                 : "<span></span>";
             sb.Append(label);
         }
@@ -364,10 +364,10 @@ public static class ReportWriter
         var treasureRows = matches.SelectMany(m => m.TreasureFinds.Select(f => (m, f))).ToList();
 
         sb.Append("<div class=\"grid2\" style=\"margin-top:28px\">");
-        sb.Append($"<section><div class=\"sh\"><h2>{L.T("Por tipo de cofre", "By chest type")}</h2><span class=\"meta\">{L.T("abiertos", "opened")}</span></div><div class=\"card pad\"><div class=\"rows\">");
+        sb.Append($"<section><div class=\"sh\"><h2>{L.T("По типу сундука", "By chest type")}</h2><span class=\"meta\">{L.T("открыто", "opened")}</span></div><div class=\"card pad\"><div class=\"rows\">");
         if (byKind.Count == 0)
         {
-            sb.Append($"<div class=\"empty\">{L.T("Aún no hay cofres registrados.", "No chests recorded yet.")}</div>");
+            sb.Append($"<div class=\"empty\">{L.T("Сундуков пока нет.", "No chests recorded yet.")}</div>");
         }
         foreach (var (kind, count) in byKind)
         {
@@ -377,11 +377,11 @@ public static class ReportWriter
         var destroyedTotal = matches.Sum(m => m.Chests.Count(c => c.Destroyed));
         if (destroyedTotal > 0)
         {
-            sb.Append($"<div class=\"row sub\"><span>↳ {L.T("de ellos, destruidos en vez de abiertos", "of which destroyed instead of opened")}</span><span class=\"n\">{N(destroyedTotal)}</span></div>");
+            sb.Append($"<div class=\"row sub\"><span>↳ {L.T("из них разрушено, а не открыто", "of which destroyed instead of opened")}</span><span class=\"n\">{N(destroyedTotal)}</span></div>");
         }
         foreach (var (kind, count) in otherKinds)
         {
-            sb.Append($"<div class=\"row sub\"><span>{H(L.Name(kind))} <span class=\"sm\">· {L.T("fuera del total", "not in the total")}</span></span><span class=\"n\">{N(count)}</span></div>");
+            sb.Append($"<div class=\"row sub\"><span>{H(L.Name(kind))} <span class=\"sm\">· {L.T("не входят в итог", "not in the total")}</span></span><span class=\"n\">{N(count)}</span></div>");
         }
         sb.Append("</div></div></section>");
 
@@ -389,7 +389,7 @@ public static class ReportWriter
         {
             var bySource = treasureRows.GroupBy(r => r.f.SourceLabel).OrderByDescending(g => g.Count()).ToList();
             var srcMax = Math.Max(1, bySource.Max(g => g.Count()));
-            sb.Append($"<section><div class=\"sh\"><h2>{L.T("De dónde vienen los tesoros", "Where the treasures come from")}</h2><span class=\"meta\">{L.T("seguros / total", "certain / total")}</span></div><div class=\"card pad\"><div class=\"rows\">");
+            sb.Append($"<section><div class=\"sh\"><h2>{L.T("Откуда сокровища", "Where the treasures come from")}</h2><span class=\"meta\">{L.T("точно / всего", "certain / total")}</span></div><div class=\"card pad\"><div class=\"rows\">");
             foreach (var g in bySource)
             {
                 var isChest = g.First().f.SourceIsChest;
@@ -399,7 +399,7 @@ public static class ReportWriter
         }
         else
         {
-            sb.Append($"<section><div class=\"sh\"><h2>{L.T("Tesoros", "Treasures")}</h2></div><div class=\"card\"><div class=\"empty\">{L.T("Todavía no has encontrado tesoros. Aparecerán aquí con el momento y el cofre de origen.", "No treasures yet. They will show up here with the time and the chest they came from.")}</div></div></section>");
+            sb.Append($"<section><div class=\"sh\"><h2>{L.T("Сокровища", "Treasures")}</h2></div><div class=\"card\"><div class=\"empty\">{L.T("Сокровищ пока нет. Они появятся здесь со временем и сундуком, из которого выпали.", "No treasures yet. They will show up here with the time and the chest they came from.")}</div></div></section>");
         }
         sb.Append("</div>");
 
@@ -411,22 +411,22 @@ public static class ReportWriter
             {
                 var kinds = H(string.Join(", ", unusual.Select(r => L.Name(r.f.SourceKind)).Distinct()));
                 sb.Append(L.En
-                    ? $"<div class=\"flag\"><span class=\"ic\">⚑</span><div><b>{L.Count(unusual.Count, "", "", "treasure", "treasures")} obtained other than from a chest</b>: {kinds}. Highlighted in the table below.</div></div>"
-                    : $"<div class=\"flag\"><span class=\"ic\">⚑</span><div><b>{L.Count(unusual.Count, "tesoro obtenido", "tesoros obtenidos", "", "")} de otra forma que con un cofre</b>: {kinds}. Resaltados en la tabla de abajo.</div></div>");
+                    ? $"<div class=\"flag\"><span class=\"ic\">⚑</span><div><b>{L.Count(unusual.Count, "", "", "", "treasure", "treasures")} obtained other than from a chest</b>: {kinds}. Highlighted in the table below.</div></div>"
+                    : $"<div class=\"flag\"><span class=\"ic\">⚑</span><div><b>{L.Count(unusual.Count, "сокровище получено", "сокровища получено", "сокровищ получено", "", "")} не из сундука</b>: {kinds}. Выделены в таблице ниже.</div></div>");
             }
 
             sb.Append($"""
-                <section><div class="sh"><h2>{L.T("Tesoros obtenidos", "Treasures obtained")}</h2><span class="meta">{L.Count(treasureRows.Count, "tesoro", "tesoros", "treasure", "treasures")}</span></div>
-                <div class="card tw"><table><thead><tr><th>{L.T("Partida", "Match")}</th><th>{L.T("Tesoro", "Treasure")}</th><th>{L.T("Momento", "Time")}</th><th>{L.T("Origen", "Source")}</th></tr></thead><tbody>
+                <section><div class="sh"><h2>{L.T("Полученные сокровища", "Treasures obtained")}</h2><span class="meta">{L.Count(treasureRows.Count, "сокровище", "сокровища", "сокровищ", "treasure", "treasures")}</span></div>
+                <div class="card tw"><table><thead><tr><th>{L.T("Матч", "Match")}</th><th>{L.T("Сокровище", "Treasure")}</th><th>{L.T("Время", "Time")}</th><th>{L.T("Источник", "Source")}</th></tr></thead><tbody>
                 """);
             foreach (var (m, f) in treasureRows)
             {
                 var id = f.PrizeId != null ? $"<div class=\"sm\">{H(f.PrizeId)}</div>" : (f.RawItem.StartsWith("WID_") ? $"<div class=\"sm\">{H(f.RawItem)}</div>" : "");
-                var when = f.ObtainedAtSeconds is float t ? (f.TimeExact ? Pretty.Clock(t) : $"<span class=\"sm\">{L.T("hacia", "around")}</span> {Pretty.Clock(t)}") : "<span class=\"muted\">—</span>";
+                var when = f.ObtainedAtSeconds is float t ? (f.TimeExact ? Pretty.Clock(t) : $"<span class=\"sm\">{L.T("около", "around")}</span> {Pretty.Clock(t)}") : "<span class=\"muted\">—</span>";
                 var source = $"{(f.SourceIsChest ? "" : "⚑ ")}{H(f.SourceLabel)}"
                     + (f.SourceCertain ? "" : $" <span class=\"sm\">({Pretty.Likely})</span>")
                     + (!f.SourceIsChest && !string.IsNullOrEmpty(f.SourceBlueprint) ? $"<div class=\"sm\">{H(f.SourceBlueprint)}</div>" : "")
-                    + (f.AlsoPossible.Count > 0 ? $"<div class=\"sm\">{L.T("también posible: ", "also possible: ")}{H(string.Join(", ", f.AlsoPossible.Select(L.Name)))}</div>" : "");
+                    + (f.AlsoPossible.Count > 0 ? $"<div class=\"sm\">{L.T("также возможно: ", "also possible: ")}{H(string.Join(", ", f.AlsoPossible.Select(L.Name)))}</div>" : "");
                 sb.Append($"<tr{(f.SourceIsChest ? "" : " class=\"unusual\"")}><td class=\"nw\">{L.DateTimeShort(When(m))}</td><td><span class=\"star\">{(f.FromGoldenChest ? "★★" : "★")} {H(f.DisplayName)}</span>{id}</td><td class=\"nw num\">{when}</td><td>{source}</td></tr>");
             }
             sb.Append("</tbody></table></div></section>");
@@ -436,12 +436,12 @@ public static class ReportWriter
         var shown = matches.Take(100).ToList();
         var shownMax = Math.Max(1, shown.Select(m => m.ChestsOpened).DefaultIfEmpty(0).Max());
         sb.Append($"""
-            <section><div class="sh"><h2>{L.T("Últimas partidas", "Latest matches")}</h2><span class="meta">{(matches.Count > shown.Count ? L.T($"las {shown.Count} más recientes de {N(matches.Count)}", $"latest {shown.Count} of {N(matches.Count)}") : L.Count(matches.Count, "partida", "partidas", "match", "matches"))}</span></div>
-            <div class="card tw"><table><thead><tr><th>{L.T("Fecha", "Date")}</th><th>{L.T("Modo", "Mode")}</th><th>{L.T("Puesto", "Placement")}</th><th class="r">{L.T("Cofres", "Chests")}</th><th>{L.T("Tesoros", "Treasures")}</th></tr></thead><tbody>
+            <section><div class="sh"><h2>{L.T("Последние матчи", "Latest matches")}</h2><span class="meta">{(matches.Count > shown.Count ? L.T($"последние {shown.Count} из {N(matches.Count)}", $"latest {shown.Count} of {N(matches.Count)}") : L.Count(matches.Count, "матч", "матча", "матчей", "match", "matches"))}</span></div>
+            <div class="card tw"><table><thead><tr><th>{L.T("Дата", "Date")}</th><th>{L.T("Режим", "Mode")}</th><th>{L.T("Место", "Placement")}</th><th class="r">{L.T("Сундуки", "Chests")}</th><th>{L.T("Сокровища", "Treasures")}</th></tr></thead><tbody>
             """);
         if (shown.Count == 0)
         {
-            sb.Append($"<tr><td colspan=\"5\" class=\"empty\">{L.T("Aún no hay partidas analizadas. Juega una y aparecerá aquí.", "No matches analyzed yet. Play one and it will show up here.")}</td></tr>");
+            sb.Append($"<tr><td colspan=\"5\" class=\"empty\">{L.T("Разобранных матчей пока нет. Сыграйте один, и он появится здесь.", "No matches analyzed yet. Play one and it will show up here.")}</td></tr>");
         }
         foreach (var m in shown)
         {
@@ -456,10 +456,10 @@ public static class ReportWriter
 
         sb.Append(L.T(
             """
-            <footer><h3>Cómo se cuenta</h3>
-            <p>Cuenta los cofres que abriste o destruiste tú mismo, según tus archivos de replay (analizados tras cada partida). Las cajas de munición y de comida no se cuentan.</p>
-            <p><span class="star">★★</span> cofre dorado de la caza del tesoro (cosmético, acceso a la tienda…), detectado con seguridad. <span class="star">★</span> tesoro recibido gracias a uno de tus cofres (momento exacto), con nombre cuando el objeto se puede identificar.</p>
-            <p>Los nombres de los premios se pueden editar en <code>treasures.json</code>. Esta página se actualiza sola.</p></footer>
+            <footer><h3>Как считается</h3>
+            <p>Считаются сундуки, которые вы открыли или разрушили сами, по вашим файлам реплеев (разбираются после каждого матча). Ящики с патронами и едой не считаются.</p>
+            <p><span class="star">★★</span> золотой сундук охоты за сокровищами (косметика, доступ к магазину…), определён точно. <span class="star">★</span> сокровище из одного из ваших сундуков (точное время), с названием, если предмет удалось определить.</p>
+            <p>Названия призов можно поменять в <code>treasures.json</code>. Страница обновляется сама.</p></footer>
             </main></body></html>
             """,
             """
@@ -498,8 +498,8 @@ public static class ReportWriter
             return "";
         }
         var pct = p.Total > 0 ? (int)Math.Round(100.0 * p.Done / p.Total) : 0;
-        var head = L.T($"Analizando tus replays… {p.Done} / {p.Total}", $"Analyzing your replays… {p.Done} / {p.Total}");
-        var note = L.T("Esta página se actualiza sola: las cifras de abajo aumentan a medida que se leen los replays.",
+        var head = L.T($"Разбираю реплеи… {p.Done} / {p.Total}", $"Analyzing your replays… {p.Done} / {p.Total}");
+        var note = L.T("Страница обновляется сама: цифры ниже растут по мере чтения реплеев.",
             "This page updates by itself: the numbers below grow as the replays are read.");
         return $"""<div class="loading"><div class="spin"></div><div class="grow"><b>{head}</b><div class="pbar"><i style="width:{pct}%"></i></div><span class="muted">{note}</span></div></div>""";
     }
@@ -511,7 +511,7 @@ public static class ReportWriter
         {
             return "";
         }
-        return $"""<div class="profiles">{L.T("Otros perfiles en este PC: ", "Other profiles on this PC: ")}{string.Join(", ", others)} · {L.T("cambia de perfil desde los ajustes de la herramienta", "switch profile from the tool's settings")}</div>""";
+        return $"""<div class="profiles">{L.T("Другие профили на этом ПК: ", "Other profiles on this PC: ")}{string.Join(", ", others)} · {L.T("профиль меняется в настройках программы", "switch profile from the tool's settings")}</div>""";
     }
 
     /// <summary>Rewrites only the OBS overlay page (called on every live update).</summary>
@@ -560,9 +560,9 @@ public static class ReportWriter
         var chip = v.Current == null ? "none" : v.CurrentLive ? "live" : "";
         return $"""
             <div class="box{(v.CurrentLive ? " live" : "")}">
-            <div class="head"><span>{L.T("COFRES", "CHESTS")}</span>{badge}</div>
+            <div class="head"><span>{L.T("СУНДУКИ", "CHESTS")}</span>{badge}</div>
             <div class="main">
-              <div class="total"><span class="big">{H(v.Total)}</span><span class="cap">total</span></div>
+              <div class="total"><span class="big">{H(v.Total)}</span><span class="cap">{L.T("всего", "total")}</span></div>
               <div class="chip {chip}"><span class="big">{H(v.Current ?? "—")}</span><span class="cap">{H(v.CurrentCaption)}</span></div>
             </div>
             <div class="stats">{stats}</div>
@@ -573,14 +573,14 @@ public static class ReportWriter
     /// <summary>overlay.html (a file: reloads itself every 10 s).</summary>
     public static string Overlay(OverlayView v) => $"""
         <!doctype html><html lang="{L.Code}"><head><meta charset="utf-8"><meta http-equiv="refresh" content="10">
-        <title>{L.T("Overlay de cofres", "Chest overlay")}</title><style>{OverlayStyle}</style></head>
+        <title>{L.T("Оверлей сундуков", "Chest overlay")}</title><style>{OverlayStyle}</style></head>
         <body>{OverlayBox(v)}</body></html>
         """;
 
     /// <summary>OBS page served by the tool: fetches the card every 2 s and swaps it only when it changed (no flicker).</summary>
     public static string OverlayLivePage(string box) => $$"""
         <!doctype html><html lang="{{L.Code}}"><head><meta charset="utf-8">
-        <title>{{L.T("Overlay de cofres", "Chest overlay")}}</title><style>{{OverlayStyle}}</style></head>
+        <title>{{L.T("Оверлей сундуков", "Chest overlay")}}</title><style>{{OverlayStyle}}</style></head>
         <body><div id="o">{{box}}</div>
         <script>
         let last = document.getElementById("o").innerHTML;
@@ -598,7 +598,7 @@ public static class ReportWriter
     public static string Csv(TrackerData data)
     {
         var sb = new StringBuilder();
-        sb.AppendLine(L.T("fecha;modo;jugador;puesto;jugadores;cofres;cajas_municion;tesoros;archivo",
+        sb.AppendLine(L.T("дата;режим;игрок;место;игроков;сундуки;ящики_патронов;сокровища;файл",
             "date;mode;player;placement;players;chests;ammo_boxes;treasures;file"));
 
         foreach (var m in data.Matches.OrderBy(When))
