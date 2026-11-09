@@ -120,140 +120,157 @@ public static class ReportWriter
 
     private static DateTime When(MatchRecord m) => (m.MatchStartUtc ?? m.AnalyzedAtUtc).ToLocalTime();
 
-    // Misma paleta que la ventana (azul noche, cian y ámbar). Oscuro por defecto; claro si el sistema lo pide.
+    // Same look as the window: near-black, stepped pixel corners, dot-matrix figures, grain, one lavender accent. Dark only.
     private const string Style = """
-        :root{--bg:#0b0e14;--bg2:#0f131b;--card:#151a24;--card2:#1a2030;--ink:#e6eaf2;--muted:#7a8496;--faint:#4a5468;--line:#232b3a;--line2:#2e3850;
-          --cyan:#38d6f0;--cyan-soft:rgba(56,214,240,.12);--amber:#ffb84d;--amber-soft:rgba(255,184,77,.13);--mint:#3ddc97;--mint-soft:rgba(61,220,151,.13);
-          --rose:#ff80aa;--rose-soft:rgba(255,128,170,.12);--blue:#3878dc;--shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.18)}
-        @media (prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg:#f4f6fa;--bg2:#eef1f6;--card:#fff;--card2:#f7f9fc;--ink:#151a24;--muted:#5d6678;--faint:#9aa3b5;
-          --line:#e3e7ef;--line2:#d4dae6;--cyan:#0b8fb0;--cyan-soft:rgba(11,143,176,.09);--amber:#b8730d;--amber-soft:rgba(184,115,13,.1);--mint:#13895a;--mint-soft:rgba(19,137,90,.1);
-          --rose:#c2346a;--rose-soft:rgba(194,52,106,.08);--blue:#2f6fd6;--shadow:0 1px 2px rgba(20,30,50,.06),0 6px 20px rgba(20,30,50,.06)}}
-        :root[data-theme="light"]{--bg:#f4f6fa;--bg2:#eef1f6;--card:#fff;--card2:#f7f9fc;--ink:#151a24;--muted:#5d6678;--faint:#9aa3b5;
-          --line:#e3e7ef;--line2:#d4dae6;--cyan:#0b8fb0;--cyan-soft:rgba(11,143,176,.09);--amber:#b8730d;--amber-soft:rgba(184,115,13,.1);--mint:#13895a;--mint-soft:rgba(19,137,90,.1);
-          --rose:#c2346a;--rose-soft:rgba(194,52,106,.08);--blue:#2f6fd6;--shadow:0 1px 2px rgba(20,30,50,.06),0 6px 20px rgba(20,30,50,.06)}
+        :root{--bg:#09090b;--panel:#0f0f12;--panel-2:#131317;--line:#2a2a31;--line-hi:#3a3a44;--text:#ececf1;--muted:#85858f;--dim:#55555e;
+          --accent:#b9a8ff;--accent-deep:#7a68d6;--accent-bg:rgba(150,128,255,.16);--warn:#e2683a;--warn-bg:rgba(226,104,58,.12);--bar:#4a4a55;
+          --dot-off:rgba(255,255,255,.055);--s:3px;
+          --notch:polygon(0 calc(var(--s)*2),var(--s) calc(var(--s)*2),var(--s) var(--s),calc(var(--s)*2) var(--s),calc(var(--s)*2) 0,
+            calc(100% - var(--s)*2) 0,calc(100% - var(--s)*2) var(--s),calc(100% - var(--s)) var(--s),calc(100% - var(--s)) calc(var(--s)*2),100% calc(var(--s)*2),
+            100% calc(100% - var(--s)*2),calc(100% - var(--s)) calc(100% - var(--s)*2),calc(100% - var(--s)) calc(100% - var(--s)),calc(100% - var(--s)*2) calc(100% - var(--s)),calc(100% - var(--s)*2) 100%,
+            calc(var(--s)*2) 100%,calc(var(--s)*2) calc(100% - var(--s)),var(--s) calc(100% - var(--s)),var(--s) calc(100% - var(--s)*2),0 calc(100% - var(--s)*2));
+          --rose:var(--accent);color-scheme:dark}
         *{box-sizing:border-box}
         html{background:var(--bg)}
-        body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 "Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
-        main{max-width:1120px;margin:0 auto;padding:28px 16px 56px}
+        body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 Inter,"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+        body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:50;opacity:.13;mix-blend-mode:overlay;
+          background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
+        .dust{position:fixed;inset:0;pointer-events:none;z-index:0}.dust i{position:absolute;width:2px;height:2px;background:#2c2c33}.dust i.l{background:#3b3550}
+        main{position:relative;z-index:1;max-width:1120px;margin:0 auto;padding:28px 16px 56px}
         .num{font-variant-numeric:tabular-nums}
         .muted{color:var(--muted)}
 
-        /* Cabecera */
+        /* Pixel panels: border colour outside, fill 1px inside, both cut by the same stepped outline */
+        .kpi,.card,.flag,.loading,.upd,.badge,.logo,.tip{position:relative;clip-path:var(--notch);background:var(--line);isolation:isolate;border:0}
+        .kpi::before,.card::before,.flag::before,.loading::before,.upd::before,.badge::before,.logo::before,.tip::before{content:"";position:absolute;inset:1px;clip-path:var(--notch);background:var(--panel);z-index:-1}
+
+        /* Dot-matrix figures */
+        .dots{--d:4px;display:inline-flex;gap:calc(var(--d) + 1px);vertical-align:-.08em}
+        .dots .dg{display:grid;grid-template-columns:repeat(var(--c),var(--d));grid-auto-rows:var(--d);gap:1px}
+        .dots i{background:var(--dot-off)}.dots i.on{background:currentColor}
+        .dots .sp{width:calc(var(--d)*2)}
+
+        /* Header */
         .masthead{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px 24px;padding-bottom:20px;margin-bottom:24px;border-bottom:1px solid var(--line)}
         .brand{display:flex;align-items:center;gap:14px;min-width:0}
-        .logo{width:44px;height:44px;flex:none;border-radius:12px;display:grid;place-items:center;background:var(--cyan-soft);color:var(--cyan)}
-        .eyebrow{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan)}
-        h1{margin:0;font-size:24px;line-height:1.2;font-weight:700;letter-spacing:-.015em;overflow-wrap:anywhere}
-        .upd{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid var(--line);border-radius:99px;background:var(--card);color:var(--muted);font-size:12.5px}
-        .dot{width:8px;height:8px;border-radius:50%;background:var(--mint);box-shadow:0 0 0 0 var(--mint);animation:pulse 2s ease-out infinite}
-        @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(61,220,151,.5)}70%{box-shadow:0 0 0 7px rgba(61,220,151,0)}100%{box-shadow:0 0 0 0 rgba(61,220,151,0)}}
+        .logo{width:48px;height:48px;flex:none;display:grid;place-items:center;color:var(--accent)}
+        .logo svg{shape-rendering:crispEdges}
+        .eyebrow{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+        .eyebrow::before,h2::before,footer h3::before{content:"";width:6px;height:6px;background:var(--accent);flex:none}
+        h1{margin:2px 0 0;font-size:24px;line-height:1.2;font-weight:700;letter-spacing:-.01em;overflow-wrap:anywhere}
+        .upd{display:inline-flex;align-items:center;gap:9px;padding:6px 12px;color:var(--muted);font-size:12.5px}
+        .upd::before{background:var(--panel-2)}
+        .dot{width:6px;height:6px;background:var(--accent);animation:blink 1.6s steps(2,jump-none) infinite}
+        @keyframes blink{50%{opacity:.25}}
         .profiles{margin:-12px 0 22px;font-size:13px;color:var(--muted)}
 
-        /* Cifras clave */
-        .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
-        .kpi{position:relative;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px;box-shadow:var(--shadow);min-width:0}
-        .kpi .l{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
-        .kpi .v{margin-top:6px;font-size:30px;font-weight:700;line-height:1.1;letter-spacing:-.02em;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
-        .kpi .s{margin-top:4px;font-size:12.5px;color:var(--muted)}
-        .kpi.hero{grid-column:span 2;grid-row:span 2;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden;
-          background:linear-gradient(135deg,var(--cyan-soft),transparent 65%),var(--card)}
-        .kpi.hero .v{font-size:64px;color:var(--cyan);margin-top:10px}
+        /* Key figures */
+        .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+        .kpi{padding:16px 18px;min-width:0}
+        .kpi .l{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+        .kpi .v{margin-top:10px;line-height:1;color:var(--text)}
+        .kpi .s{margin-top:8px;font-size:12.5px;color:var(--muted)}
+        .kpi.hero{grid-column:span 2;grid-row:span 2;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden}
+        .kpi.hero .v{color:var(--accent);margin-top:16px}.kpi.hero .v .dots{--d:9px}
         .kpi.hero .s{font-size:13.5px}
-        .kpi .acc{color:var(--amber)} .kpi .ros{color:var(--rose)} .kpi .mnt{color:var(--mint)}
+        .kpi .acc,.kpi .ros,.kpi .mnt{color:var(--text)}
         .split{display:flex;gap:28px;margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}
         .split b{display:block;font-size:20px;font-variant-numeric:tabular-nums}
         .split span{font-size:12px;color:var(--muted)}
 
-        /* Secciones */
+        /* Sections */
         section{margin-top:28px}
-        .sh{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 16px;margin:0 0 12px}
-        h2{margin:0;font-size:16px;font-weight:700;letter-spacing:-.005em}
+        .sh{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 16px;margin:0 0 10px}
+        h2{display:flex;align-items:center;gap:9px;margin:0;font-size:15px;font-weight:700}
         .sh .meta{font-size:12.5px;color:var(--muted)}
-        .card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}
         .pad{padding:18px 20px}
-        .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px}
+        .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 16px}
         .grid2 section{margin-top:0}
 
-        /* Gráfico de 30 días */
+        /* 30-day chart: columns of pixel blocks */
         .chart{position:relative;display:grid;grid-template-columns:auto 1fr;gap:0 10px}
-        .yaxis{display:flex;flex-direction:column;justify-content:space-between;height:200px;font-size:11px;color:var(--faint);text-align:right;font-variant-numeric:tabular-nums}
+        .yaxis{display:flex;flex-direction:column;justify-content:space-between;height:200px;font-size:11px;color:var(--dim);text-align:right;font-variant-numeric:tabular-nums}
         .yaxis span{transform:translateY(-50%)} .yaxis span:last-child{transform:translateY(50%)}
-        .plot{position:relative;height:200px;display:flex;align-items:flex-end;gap:3px;
-          background:linear-gradient(var(--line) 1px,transparent 1px) 0 0/100% 50%;border-bottom:1px solid var(--line2)}
-        .avg{position:absolute;left:0;right:0;z-index:2;border-top:1px dashed var(--amber);pointer-events:none}
-        .avg span{position:absolute;left:0;top:-19px;font-size:11px;font-weight:600;color:var(--amber);background:var(--card);padding:0 4px;border-radius:4px}
-        .col{flex:1;min-width:4px;height:100%;display:flex;align-items:flex-end;position:relative}
-        .bar{width:100%;background:var(--blue);border-radius:4px 4px 1px 1px;transition:filter .12s,background .12s}
-        .col.today .bar{background:var(--cyan)}
-        .bar.zero{background:var(--line2);height:2px!important;border-radius:1px}
-        .col:hover .bar{filter:brightness(1.25)}
-        .tip{position:absolute;left:50%;transform:translateX(-50%);white-space:nowrap;background:var(--ink);color:var(--bg);
-          padding:4px 9px;border-radius:8px;font-size:12px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .12s;z-index:3}
+        .plot{position:relative;height:200px;display:flex;align-items:flex-end;gap:3px;border-bottom:1px solid var(--line-hi)}
+        .avg{position:absolute;left:0;right:0;z-index:2;border-top:1px dashed var(--accent-deep);pointer-events:none}
+        .avg span{position:absolute;left:0;top:-19px;font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--accent);background:var(--panel);padding:0 4px}
+        .col{flex:1;min-width:4px;height:100%;display:flex;align-items:flex-end;position:relative;
+          background:repeating-linear-gradient(to top,var(--dot-off) 0 4px,transparent 4px 6px)}
+        .bar{width:100%;background:repeating-linear-gradient(to top,var(--bar) 0 4px,transparent 4px 6px)}
+        .col.today .bar{background:repeating-linear-gradient(to top,var(--accent) 0 4px,transparent 4px 6px)}
+        .bar.zero{height:0!important}
+        .col:hover .bar{filter:brightness(1.35)}
+        .tip{position:absolute;left:50%;transform:translateX(-50%);white-space:nowrap;color:var(--text);
+          padding:4px 9px;font-size:12px;font-weight:600;opacity:0;pointer-events:none;z-index:3;background:var(--line-hi)}
+        .tip::before{background:var(--panel-2)}
         .col:nth-child(-n+4) .tip{left:0;transform:none}
         .col:nth-last-child(-n+4) .tip{left:auto;right:0;transform:none}
         .col:hover .tip{opacity:1}
-        .xaxis{grid-column:2;display:flex;gap:3px;margin-top:8px;font-size:11px;color:var(--faint)}
+        .xaxis{grid-column:2;display:flex;gap:3px;margin-top:8px;font-size:11px;color:var(--dim)}
         .xaxis span{flex:1;min-width:4px;text-align:center;white-space:nowrap;overflow:visible}
         .xaxis span:empty{visibility:hidden}
-        .xaxis .t{color:var(--cyan);font-weight:600}
+        .xaxis .t{color:var(--accent);font-weight:700}
 
-        /* Listas con barra de proporción */
+        /* Lists with a segmented share bar */
         .rows{display:flex;flex-direction:column}
-        .row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:10px 0;border-bottom:1px solid var(--line)}
+        .row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;padding:10px 0;border-bottom:1px solid var(--line)}
         .row:last-child{border-bottom:none}
         .row .n{font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
         .row .n small{font-weight:500;color:var(--muted);margin-left:6px}
-        .track{grid-column:1/-1;height:6px;border-radius:3px;background:var(--bg2);overflow:hidden}
-        .track i{display:block;height:100%;border-radius:3px;background:var(--cyan)}
+        .track{grid-column:1/-1;height:6px;background:repeating-linear-gradient(90deg,var(--dot-off) 0 6px,transparent 6px 8px)}
+        .track i{display:block;height:100%;background:repeating-linear-gradient(90deg,var(--accent) 0 6px,transparent 6px 8px)!important}
         .row.sub{color:var(--muted)} .row.sub .n{color:var(--muted);font-weight:600}
-        .row.warn .track i{background:var(--amber)}
+        .row.warn .track i{background:repeating-linear-gradient(90deg,var(--warn) 0 6px,transparent 6px 8px)!important}
         .note{margin:12px 0 0;font-size:12.5px;color:var(--muted)}
 
-        /* Tablas */
+        /* Tables */
         .tw{overflow-x:auto}
         table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
-        th,td{text-align:left;padding:11px 16px;border-bottom:1px solid var(--line);vertical-align:middle}
-        th{position:sticky;top:0;background:var(--card2);font-size:11.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
-        thead tr th:first-child{border-top-left-radius:15px} thead tr th:last-child{border-top-right-radius:15px}
+        th,td{text-align:left;padding:10px 16px;border-bottom:1px solid var(--line);vertical-align:middle}
+        th{position:sticky;top:0;background:var(--panel-2);font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
         tbody tr:last-child td{border-bottom:none}
-        tbody tr:hover td{background:var(--bg2)}
+        tbody tr:hover td{background:var(--panel-2)}
         .r{text-align:right} .nw{white-space:nowrap}
         .sm{font-size:12.5px;color:var(--muted)}
-        .badge{display:inline-flex;align-items:center;gap:6px;padding:2px 10px;border-radius:99px;font-size:12.5px;font-weight:600;white-space:nowrap;background:var(--bg2);color:var(--muted)}
-        .badge.win{background:var(--amber-soft);color:var(--amber)}
-        .badge.top{background:var(--mint-soft);color:var(--mint)}
-        .badge.mode{background:transparent;border:1px solid var(--line2);color:var(--ink);font-weight:500}
+        .badge{--s:2px;display:inline-flex;align-items:center;gap:6px;padding:2px 9px;font-size:11.5px;font-weight:600;white-space:nowrap;color:var(--muted);background:var(--line-hi)}
+        .badge::before{background:var(--panel-2)}
+        .badge.win{color:var(--accent);background:var(--accent-deep)}.badge.win::before{background:#221e36}
+        .badge.top{color:var(--text)}
+        .badge.mode{color:var(--text);font-weight:500;background:var(--line)}.badge.mode::before{background:var(--panel)}
         .chests{display:flex;align-items:center;justify-content:flex-end;gap:10px}
-        .chests .mini{width:70px;height:6px;border-radius:3px;background:var(--bg2);overflow:hidden}
-        .chests .mini i{display:block;height:100%;background:var(--amber);border-radius:3px}
+        .chests .mini{width:70px;height:6px;background:repeating-linear-gradient(90deg,var(--dot-off) 0 4px,transparent 4px 5px)}
+        .chests .mini i{display:block;height:100%;background:repeating-linear-gradient(90deg,var(--bar) 0 4px,transparent 4px 5px)}
         .chests b{min-width:28px;text-align:right}
-        .star{color:var(--rose);font-weight:600}
+        .star{color:var(--accent);font-weight:600}
         .tlist{display:flex;flex-direction:column;gap:2px}
-        tr.unusual td{background:var(--amber-soft)}
-        .flag{display:flex;gap:12px;align-items:flex-start;margin-top:28px;padding:14px 18px;border:1px solid var(--amber);border-radius:14px;background:var(--amber-soft)}
-        .flag .ic{color:var(--amber);font-size:18px;line-height:1.2}
+        tr.unusual td{background:var(--warn-bg)}
+        .flag{display:flex;gap:12px;align-items:flex-start;margin-top:28px;padding:14px 18px;background:var(--warn)}
+        .flag::before{background:#1a110d}
+        .flag .ic{color:var(--warn);font-size:18px;line-height:1.2}
         .empty{padding:28px 20px;text-align:center;color:var(--muted)}
 
-        /* Carga */
-        .loading{display:flex;gap:16px;align-items:center;background:var(--card);border:1px solid var(--cyan);border-radius:16px;padding:16px 18px;margin-bottom:22px;box-shadow:var(--shadow)}
-        .spin{width:30px;height:30px;flex:none;border:3px solid var(--line2);border-top-color:var(--cyan);border-radius:50%;animation:spin .8s linear infinite}
-        @keyframes spin{to{transform:rotate(360deg)}}
+        /* Loading */
+        .loading{display:flex;gap:16px;align-items:center;padding:16px 18px;margin-bottom:22px;background:var(--accent-deep)}
+        .spin{display:grid;grid-template-columns:repeat(3,6px);gap:3px;flex:none}
+        .spin::before,.spin::after,.spin i{content:"";width:6px;height:6px;background:var(--accent);animation:blink 1s steps(2,jump-none) infinite}
+        .spin::after{animation-delay:.33s}.spin i{animation-delay:.66s}
         .loading .grow{flex:1;min-width:0}
-        .pbar{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin:8px 0 6px}
-        .pbar i{display:block;height:100%;background:var(--cyan);border-radius:4px}
+        .pbar{height:8px;margin:8px 0 6px;background:repeating-linear-gradient(90deg,var(--dot-off) 0 6px,transparent 6px 8px)}
+        .pbar i{display:block;height:100%;background:repeating-linear-gradient(90deg,var(--accent) 0 6px,transparent 6px 8px)}
 
-        /* Pie */
+        /* Footer */
         footer{margin-top:36px;padding-top:18px;border-top:1px solid var(--line);color:var(--muted);font-size:12.5px;line-height:1.65}
-        footer h3{margin:0 0 6px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+        footer h3{display:flex;align-items:center;gap:9px;margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
         footer p{margin:0 0 6px;max-width:860px}
+        code{font:12px Consolas,"Cascadia Mono",monospace;color:var(--text)}
 
-        @media (max-width:860px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.grid2{grid-template-columns:1fr}.kpi.hero .v{font-size:52px}}
-        @media (max-width:520px){main{padding:20px 16px 40px}.kpis{grid-template-columns:1fr 1fr}.kpi.hero{grid-row:auto}.kpi .v{font-size:24px}
-          .kpi.hero .v{font-size:44px}th,td{padding:10px 12px}.chests .mini{display:none}.yaxis,.plot{height:150px}}
-        @media (prefers-reduced-motion:reduce){.dot,.spin{animation:none}}
+        @media (max-width:860px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.grid2{grid-template-columns:1fr}.kpi.hero .v .dots{--d:7px}}
+        @media (max-width:520px){main{padding:20px 16px 40px}.kpis{grid-template-columns:1fr 1fr}.kpi.hero{grid-row:auto}.kpi .v .dots{--d:3px}
+          .kpi.hero .v .dots{--d:5px}th,td{padding:9px 12px}.chests .mini{display:none}.yaxis,.plot{height:150px}}
+        @media (prefers-reduced-motion:reduce){.dot,.spin::before,.spin::after,.spin i{animation:none}}
         """;
 
-    private const string ChestIcon = """<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10V8a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v2"/><rect x="3" y="10" width="18" height="10" rx="2"/><path d="M3 14h18"/><rect x="10" y="12" width="4" height="4" rx="1"/></svg>""";
+    private const string ChestIcon = """<svg width="30" height="23" viewBox="0 0 12 9" fill="currentColor" aria-hidden="true"><rect x="2" y="0" width="1" height="1"/><rect x="3" y="0" width="1" height="1"/><rect x="4" y="0" width="1" height="1"/><rect x="5" y="0" width="1" height="1"/><rect x="6" y="0" width="1" height="1"/><rect x="7" y="0" width="1" height="1"/><rect x="8" y="0" width="1" height="1"/><rect x="9" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="10" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="11" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="2" y="3" width="1" height="1"/><rect x="3" y="3" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="5" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="7" y="3" width="1" height="1"/><rect x="8" y="3" width="1" height="1"/><rect x="9" y="3" width="1" height="1"/><rect x="10" y="3" width="1" height="1"/><rect x="11" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="11" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="5" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="11" y="5" width="1" height="1"/><rect x="0" y="6" width="1" height="1"/><rect x="11" y="6" width="1" height="1"/><rect x="0" y="7" width="1" height="1"/><rect x="11" y="7" width="1" height="1"/><rect x="0" y="8" width="1" height="1"/><rect x="1" y="8" width="1" height="1"/><rect x="2" y="8" width="1" height="1"/><rect x="3" y="8" width="1" height="1"/><rect x="4" y="8" width="1" height="1"/><rect x="5" y="8" width="1" height="1"/><rect x="6" y="8" width="1" height="1"/><rect x="7" y="8" width="1" height="1"/><rect x="8" y="8" width="1" height="1"/><rect x="9" y="8" width="1" height="1"/><rect x="10" y="8" width="1" height="1"/><rect x="11" y="8" width="1" height="1"/></svg>""";
 
     public static string Report(Config config, TrackerData data, IReadOnlyList<Profile> profiles, int initialChests = 0)
     {
@@ -280,7 +297,7 @@ public static class ReportWriter
             <meta name="viewport" content="width=device-width,initial-scale=1">
             <meta name="color-scheme" content="dark light">
             <meta http-equiv="refresh" content="{(progress != null ? 2 : 15)}">
-            <title>{title}{(player.Length > 0 ? " · " + H(player) : "")}</title><style>{Style}</style></head><body><main>
+            <title>{title}{(player.Length > 0 ? " · " + H(player) : "")}</title><style>{Style}</style></head><body>{Dust()}<main>
             <header class="masthead">
               <div class="brand"><div class="logo">{ChestIcon}</div>
                 <div><div class="eyebrow">{(player.Length > 0 ? title : L.T("Отчёт", "Report"))}</div><h1>{heading}</h1></div></div>
@@ -296,16 +313,16 @@ public static class ReportWriter
         sb.Append($"""
             <div class="kpis">
               <div class="kpi hero">
-                <div><div class="l">{L.T("Всего сундуков", "Total chests")}</div><div class="v">{N(totalChests)}</div><div class="s">{initialNote}</div></div>
+                <div><div class="l">{L.T("Всего сундуков", "Total chests")}</div><div class="v">{DotFont.Html(totalChests.ToString(CultureInfo.InvariantCulture))}</div><div class="s">{initialNote}</div></div>
                 <div class="split">
                   <div><b>{N(session)}</b><span>{L.T("за эту сессию", "this session")}{(sessionMatches.Count > 0 ? " · " + L.Count(sessionMatches.Count, "матч", "матча", "матчей", "match", "matches") : "")}</span></div>
                   <div><b>{N(wins)}</b><span>{L.T(L.Plural(wins, "королевская победа", "королевские победы", "королевских побед"), wins == 1 ? "Victory Royale" : "Victory Royales")}</span></div>
                 </div>
               </div>
-              <div class="kpi"><div class="l">{L.T("Матчи", "Matches")}</div><div class="v">{N(matches.Count)}</div><div class="s">{L.T("разобрано", "analyzed")}</div></div>
-              <div class="kpi"><div class="l">{L.T("Среднее", "Average")}</div><div class="v acc">{avg.ToString("0.0", Loc)}</div><div class="s">{L.T("сундуков за матч", "chests per match")}</div></div>
-              <div class="kpi"><div class="l">{L.T("Рекорд", "Best match")}</div><div class="v">{N(best)}</div><div class="s">{L.T("сундуков в одном матче", "chests in one match")}</div></div>
-              <div class="kpi"><div class="l">{L.T("Сокровища", "Treasures")}</div><div class="v ros">{N(treasures)}</div><div class="s">{L.T("найдено", "found")}</div></div>
+              <div class="kpi"><div class="l">{L.T("Матчи", "Matches")}</div><div class="v">{DotFont.Html(matches.Count.ToString(CultureInfo.InvariantCulture))}</div><div class="s">{L.T("разобрано", "analyzed")}</div></div>
+              <div class="kpi"><div class="l">{L.T("Среднее", "Average")}</div><div class="v acc">{DotFont.Html(avg.ToString("0.0", Loc))}</div><div class="s">{L.T("сундуков за матч", "chests per match")}</div></div>
+              <div class="kpi"><div class="l">{L.T("Рекорд", "Best match")}</div><div class="v">{DotFont.Html(best.ToString(CultureInfo.InvariantCulture))}</div><div class="s">{L.T("сундуков в одном матче", "chests in one match")}</div></div>
+              <div class="kpi"><div class="l">{L.T("Сокровища", "Treasures")}</div><div class="v ros">{DotFont.Html(treasures.ToString(CultureInfo.InvariantCulture))}</div><div class="s">{L.T("найдено", "found")}</div></div>
             </div>
             """);
 
@@ -448,7 +465,7 @@ public static class ReportWriter
             var treasure = m.TreasureFinds.Count == 0 ? "<span class=\"muted\">—</span>"
                 : "<div class=\"tlist\">" + string.Concat(m.TreasureFinds.Select(f => $"<span class=\"star\">{(f.FromGoldenChest ? "★★" : "★")} {H(f.DisplayName)}</span>")) + "</div>";
             var placeClass = m.Placement switch { 1 => " win", > 0 and <= 10 => " top", _ => "" };
-            var placeText = m.Placement == 1 ? "🏆 " + H(Pretty.Placement(m)) : H(Pretty.Placement(m));
+            var placeText = H(Pretty.Placement(m));
             var barW = (100.0 * m.ChestsOpened / shownMax).ToString("0.##", CultureInfo.InvariantCulture);
             sb.Append($"<tr><td class=\"nw\">{L.DateTimeShort(When(m))}</td><td><span class=\"badge mode\">{H(Pretty.Playlist(m.Playlist))}</span></td><td><span class=\"badge{placeClass}\">{placeText}</span></td><td><div class=\"chests\"><span class=\"mini\"><i style=\"width:{barW}%\"></i></span><b>{m.ChestsOpened}</b></div></td><td>{treasure}</td></tr>");
         }
@@ -470,6 +487,20 @@ public static class ReportWriter
             </main></body></html>
             """));
         return sb.ToString();
+    }
+
+    /// <summary>A few 2×2 specks at fixed spots behind the page (the same every time).</summary>
+    private static string Dust()
+    {
+        var rnd = new Random(11);
+        var sb = new StringBuilder("<div class=\"dust\" aria-hidden=\"true\">");
+        for (var i = 0; i < 26; i++)
+        {
+            var x = (rnd.NextDouble() * 100).ToString("0.#", CultureInfo.InvariantCulture);
+            var y = (rnd.NextDouble() * 100).ToString("0.#", CultureInfo.InvariantCulture);
+            sb.Append($"<i{(i % 3 == 0 ? " class=\"l\"" : "")} style=\"left:{x}%;top:{y}%\"></i>");
+        }
+        return sb.Append("</div>").ToString();
     }
 
     /// <summary>Tope "redondo" para la escala del gráfico (1, 2, 2.5, 5 × 10ⁿ), siempre ≥ el valor.</summary>
@@ -501,7 +532,7 @@ public static class ReportWriter
         var head = L.T($"Разбираю реплеи… {p.Done} / {p.Total}", $"Analyzing your replays… {p.Done} / {p.Total}");
         var note = L.T("Страница обновляется сама: цифры ниже растут по мере чтения реплеев.",
             "This page updates by itself: the numbers below grow as the replays are read.");
-        return $"""<div class="loading"><div class="spin"></div><div class="grow"><b>{head}</b><div class="pbar"><i style="width:{pct}%"></i></div><span class="muted">{note}</span></div></div>""";
+        return $"""<div class="loading"><div class="spin"><i></i></div><div class="grow"><b>{head}</b><div class="pbar"><i style="width:{pct}%"></i></div><span class="muted">{note}</span></div></div>""";
     }
 
     private static string ProfilesLine(IReadOnlyList<Profile> profiles, string player)
@@ -528,24 +559,30 @@ public static class ReportWriter
     }
 
     private const string OverlayStyle = """
-        html,body{margin:0;background:transparent;color:#e6eaf2;font:500 16px/1.25 "Segoe UI",system-ui,sans-serif}
-        .box{position:relative;display:inline-block;min-width:230px;padding:10px 14px 10px 18px;border-radius:14px;overflow:hidden;
-          background:rgba(15,19,27,.9);border:1px solid #2a3344;box-shadow:0 6px 24px rgba(0,0,0,.35)}
-        .box:before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:#ffb84d}
-        .box.live:before{background:#3ddc97}
-        .head{display:flex;align-items:center;justify-content:space-between;gap:16px;font:700 12px "Segoe UI",sans-serif;letter-spacing:.12em;color:#7a8496}
-        .pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:99px;background:#143a2c;color:#3ddc97;letter-spacing:.06em}
-        .pill:before{content:"";width:8px;height:8px;border-radius:50%;background:#3ddc97;animation:pulse 1.6s ease-in-out infinite}
-        @keyframes pulse{50%{opacity:.35}}
-        .main{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:6px 0 8px}
-        .big{display:block;font-size:34px;font-weight:800;line-height:1.05;font-variant-numeric:tabular-nums}
-        .total .big{color:#ffb84d}
-        .cap{display:block;font-size:11px;font-weight:700;letter-spacing:.1em;color:#7a8496;text-transform:uppercase}
-        .chip{min-width:84px;padding:5px 12px;border-radius:11px;background:#1a202d;text-align:center}
-        .chip.live .big,.chip.live .cap{color:#3ddc97}.chip.none .big{color:#505868}
-        .stats{display:flex;justify-content:space-between;gap:14px;border-top:1px solid #222938;padding-top:7px}
-        .stat .cap{font-size:10px}.stat b{display:block;font-size:16px;font-weight:700}
-        .stat.t b{color:#ff80aa}.stat small{display:block;font-size:11px;font-weight:600;color:#7a8496}
+        html,body{margin:0;background:transparent;color:#ececf1;font:500 16px/1.25 Inter,"Segoe UI",system-ui,sans-serif}
+        .box{--s:3px;position:relative;display:inline-block;min-width:230px;padding:11px 15px 11px;isolation:isolate;background:#2a2a31;
+          clip-path:polygon(0 6px,3px 6px,3px 3px,6px 3px,6px 0,calc(100% - 6px) 0,calc(100% - 6px) 3px,calc(100% - 3px) 3px,calc(100% - 3px) 6px,100% 6px,100% calc(100% - 6px),calc(100% - 3px) calc(100% - 6px),calc(100% - 3px) calc(100% - 3px),calc(100% - 6px) calc(100% - 3px),calc(100% - 6px) 100%,6px 100%,6px calc(100% - 3px),3px calc(100% - 3px),3px calc(100% - 6px),0 calc(100% - 6px))}
+        .box::before{content:"";position:absolute;inset:1px;z-index:-1;background:rgba(15,15,18,.94);clip-path:inherit}
+        .head{display:flex;align-items:center;justify-content:space-between;gap:16px;font:700 11px Inter,"Segoe UI",sans-serif;letter-spacing:.18em;color:#85858f}
+        .head>span:first-child{display:flex;align-items:center;gap:8px}.head>span:first-child::before{content:"";width:6px;height:6px;background:#b9a8ff}
+        .pill{display:inline-flex;align-items:center;gap:7px;padding:3px 9px;color:#b9a8ff;letter-spacing:.08em;background:#221e36;box-shadow:inset 0 0 0 1px #7a68d6;
+          clip-path:polygon(0 2px,2px 2px,2px 0,calc(100% - 2px) 0,calc(100% - 2px) 2px,100% 2px,100% calc(100% - 2px),calc(100% - 2px) calc(100% - 2px),calc(100% - 2px) 100%,2px 100%,2px calc(100% - 2px),0 calc(100% - 2px))}
+        .pill::before{content:"";width:6px;height:6px;background:#b9a8ff;animation:blink 1.6s steps(2,jump-none) infinite}
+        @keyframes blink{50%{opacity:.25}}
+        .main{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:9px 0 9px}
+        .big{display:block;line-height:1;color:#ececf1}
+        .total .big{color:#b9a8ff}
+        .dots{--d:4px;display:inline-flex;gap:calc(var(--d) + 1px)}
+        .dots .dg{display:grid;grid-template-columns:repeat(var(--c),var(--d));grid-auto-rows:var(--d);gap:1px}
+        .dots i{background:rgba(255,255,255,.055)}.dots i.on{background:currentColor}.dots .sp{width:calc(var(--d)*2)}
+        .cap{display:block;margin-top:6px;font-size:10px;font-weight:700;letter-spacing:.16em;color:#85858f;text-transform:uppercase}
+        .chip{position:relative;isolation:isolate;min-width:84px;padding:7px 12px;text-align:center;background:#2a2a31;
+          clip-path:polygon(0 4px,2px 4px,2px 2px,4px 2px,4px 0,calc(100% - 4px) 0,calc(100% - 4px) 2px,calc(100% - 2px) 2px,calc(100% - 2px) 4px,100% 4px,100% calc(100% - 4px),calc(100% - 2px) calc(100% - 4px),calc(100% - 2px) calc(100% - 2px),calc(100% - 4px) calc(100% - 2px),calc(100% - 4px) 100%,4px 100%,4px calc(100% - 2px),2px calc(100% - 2px),2px calc(100% - 4px),0 calc(100% - 4px))}
+        .chip::before{content:"";position:absolute;inset:1px;z-index:-1;background:#131317;clip-path:inherit}
+        .chip.live .big,.chip.live .cap{color:#b9a8ff}.chip.none .big{color:#55555e}
+        .stats{display:flex;justify-content:space-between;gap:14px;border-top:1px solid #1f1f25;padding-top:8px}
+        .stat .cap{font-size:9px;margin:0}.stat b{display:block;font-size:16px;font-weight:700}
+        .stat small{display:block;font-size:11px;font-weight:600;color:#85858f}
         """;
 
     /// <summary>The overlay card (shared by overlay.html and the OBS page served by the tool).</summary>
@@ -562,8 +599,8 @@ public static class ReportWriter
             <div class="box{(v.CurrentLive ? " live" : "")}">
             <div class="head"><span>{L.T("СУНДУКИ", "CHESTS")}</span>{badge}</div>
             <div class="main">
-              <div class="total"><span class="big">{H(v.Total)}</span><span class="cap">{L.T("всего", "total")}</span></div>
-              <div class="chip {chip}"><span class="big">{H(v.Current ?? "—")}</span><span class="cap">{H(v.CurrentCaption)}</span></div>
+              <div class="total"><span class="big">{DotFont.Html(v.Total)}</span><span class="cap">{L.T("всего", "total")}</span></div>
+              <div class="chip {chip}"><span class="big">{DotFont.Html(v.Current ?? "—")}</span><span class="cap">{H(v.CurrentCaption)}</span></div>
             </div>
             <div class="stats">{stats}</div>
             </div>

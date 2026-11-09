@@ -20,6 +20,7 @@ public sealed class SettingsForm : Form
     private readonly ToggleSwitch _report;
     private readonly ToggleSwitch _obsToggle;
     private Label _obsState = null!;
+    private Card _obsChip = null!;
     private TextBox _obsField = null!;
     private PillButton _obsCopy = null!;
     private readonly TextBox _folder;
@@ -44,9 +45,11 @@ public sealed class SettingsForm : Form
         StartPosition = FormStartPosition.CenterParent;
         ClientSize = new Size(592, 341);
         Icon = AppIcon.Load();
+        DoubleBuffered = true;
 
         // Cabecera, como en la ventana principal.
-        Lbl(this, L.T("НАСТРОЙКИ", "SETTINGS"), 8.5f, FontStyle.Bold, Theme.Cyan, new Point(LeftX, 14), new Size(200, 18));
+        Pixel.Marker(this, LeftX + 1, 20);
+        Lbl(this, L.T("НАСТРОЙКИ", "SETTINGS"), 8.5f, FontStyle.Bold, Theme.Ink, new Point(LeftX + 12, 14), new Size(200, 18));
         Lbl(this, L.T($"Версия {AppInfo.VersionText}", $"Version {AppInfo.VersionText}"), 8.0f, FontStyle.Regular, Theme.Muted,
             new Point(RightX, 13), new Size(RightW - 96, 18), ContentAlignment.TopRight);
 
@@ -131,7 +134,7 @@ public sealed class SettingsForm : Form
         {
             BorderStyle = BorderStyle.None,
             BackColor = Theme.Card,
-            ForeColor = Theme.Amber,
+            ForeColor = Theme.Ink,
             Font = Theme.Text(24f, FontStyle.Bold),
             Location = new Point(15, 26),
             Width = 160,
@@ -162,8 +165,9 @@ public sealed class SettingsForm : Form
         // OBS: dirección y estado.
         var obsCard = AddCard(RightX, 149, RightW, 74, 14);
         CardTitle(obsCard, L.T("Оверлей для OBS", "Overlay for OBS"));
-        var stateCard = new Card { Location = new Point(RightW - 13 - 70, 6), Size = new Size(70, 18), Radius = 9, BackColor = Theme.Panel };
-        _obsState = Lbl(stateCard, "", 7.0f, FontStyle.Bold, Theme.Red, new Point(0, 0), new Size(70, 18), ContentAlignment.MiddleCenter);
+        _obsChip = new Card { Location = new Point(RightW - 13 - 70, 6), Size = new Size(70, 18), BackColor = Theme.Panel, Edge = Theme.Line, Grain = false };
+        var stateCard = _obsChip;
+        _obsState = Lbl(stateCard, "", 7.0f, FontStyle.Bold, Theme.Muted, new Point(1, 1), new Size(68, 16), ContentAlignment.MiddleCenter);
         obsCard.Controls.Add(stateCard);
         _obsField = AddField(obsCard, new Point(13, 30), RightW - 26 - 92, "");
         _obsCopy = new PillButton { Text = L.T("Копировать", "Copy"), Location = new Point(RightW - 13 - 86, 30), Size = new Size(86, 30), Radius = 10, Font = Theme.Text(8.5f, FontStyle.Bold) };
@@ -189,7 +193,8 @@ public sealed class SettingsForm : Form
 
         // Atajos del overlay.
         var keys = AddCard(RightX, 232, RightW, 45, 12);
-        Lbl(keys, L.T("Горячие клавиши оверлея", "Overlay shortcuts"), 7.5f, FontStyle.Regular, Theme.Muted, new Point(13, 6), new Size(RightW - 26, 13));
+        Pixel.Marker(keys, 13, 9);
+        Lbl(keys, L.T("Горячие клавиши оверлея", "Overlay shortcuts"), 7.5f, FontStyle.Regular, Theme.Muted, new Point(24, 5), new Size(RightW - 37, 13));
         Lbl(keys, L.T("Ctrl+Shift+O показ · Ctrl+Shift+L замок", "Ctrl+Shift+O show  ·  Ctrl+Shift+L lock"),
             8.0f, FontStyle.Bold, Theme.Ink, new Point(13, 21), new Size(RightW - 26, 18));
 
@@ -220,8 +225,11 @@ public sealed class SettingsForm : Form
     private void RefreshObs()
     {
         var url = ObsServer.Url;
-        _obsState.Text = url != null ? L.T("● ВКЛ", "● ON") : L.T("● ВЫКЛ", "● OFF");
-        _obsState.ForeColor = url != null ? Theme.Mint : Theme.Red;
+        _obsState.Text = url != null ? L.T("ВКЛ", "ON") : L.T("ВЫКЛ", "OFF");
+        _obsState.ForeColor = url != null ? Theme.Accent : Theme.Muted;
+        _obsChip.BackColor = url != null ? Theme.ActiveBg : Theme.Panel;
+        _obsChip.Edge = url != null ? Theme.AccentDeep : Theme.Line;
+        _obsChip.Invalidate();
         _obsField.Text = url ?? (_obsToggle.Checked ? L.T("Порт занят", "Port in use") : L.T("Выключено в «Сеть»", "Off under Network"));
         _obsCopy.Enabled = url != null;
         _obsCopy.Text = L.T("Копировать", "Copy");
@@ -261,8 +269,13 @@ public sealed class SettingsForm : Form
     }
 
     /// <summary>Título pequeño en gris, como "Hoy" o "Mejor día" en la ventana principal.</summary>
-    private static void CardTitle(Card card, string text) =>
-        Lbl(card, text, 8.0f, FontStyle.Regular, Theme.Muted, new Point(13, 7), new Size(card.Width - 100, 15));
+    private static void CardTitle(Card card, string text)
+    {
+        Pixel.Marker(card, 13, 11);
+        Lbl(card, text, 8.0f, FontStyle.Regular, Theme.Muted, new Point(24, 7), new Size(card.Width - 110, 15));
+    }
+
+    protected override void OnPaintBackground(PaintEventArgs e) => Pixel.Backdrop(e.Graphics, ClientSize, seed: 5);
 
     /// <summary>Texto (y una línea gris opcional) a la izquierda y un interruptor a la derecha; clicar el texto también lo cambia.</summary>
     private static ToggleSwitch AddToggleRow(Card card, string text, string? hint, int top, bool value)
@@ -284,11 +297,11 @@ public sealed class SettingsForm : Form
     /// <summary>Campo de solo lectura sin borde dentro de un fondo redondeado.</summary>
     private static TextBox AddField(Card card, Point at, int width, string text)
     {
-        var holder = new Card { Location = at, Size = new Size(width, 30), Radius = 10, BackColor = Theme.Panel };
+        var holder = new Card { Location = at, Size = new Size(width, 30), BackColor = Theme.Field, Edge = Theme.Line, Grain = false };
         var box = new TextBox
         {
             BorderStyle = BorderStyle.None,
-            BackColor = Theme.Panel,
+            BackColor = Theme.Field,
             ForeColor = Theme.Ink,
             Font = Theme.Text(9f),
             ReadOnly = true,
@@ -308,7 +321,7 @@ public sealed class SettingsForm : Form
             Text = text,
             Font = Theme.Text(size, style),
             ForeColor = color,
-            BackColor = parent.BackColor,
+            BackColor = Color.Transparent,
             Location = at,
             Size = sz,
             TextAlign = align,

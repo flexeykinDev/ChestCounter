@@ -5,57 +5,65 @@ using System.Windows.Forms;
 
 namespace ChestCounter;
 
-/// <summary>Paleta y estilo de la interfaz: azul noche con acentos cian y ámbar.</summary>
+/// <summary>Palette: near-black, thin grey lines and one lavender accent. Orange only for warnings.</summary>
 [SupportedOSPlatform("windows")]
 internal static class Theme
 {
-    public static readonly Color Bg = Color.FromArgb(11, 14, 20);        // fondo
-    public static readonly Color Card = Color.FromArgb(21, 26, 36);      // tarjetas
-    public static readonly Color CardEdge = Color.FromArgb(38, 46, 61);  // borde de tarjeta
-    public static readonly Color Panel = Color.FromArgb(28, 35, 48);     // botones y campos
-    public static readonly Color PanelHover = Color.FromArgb(38, 47, 64);
-    public static readonly Color Line = Color.FromArgb(52, 61, 80);
-    public static readonly Color Ink = Color.FromArgb(230, 234, 242);
-    public static readonly Color Muted = Color.FromArgb(122, 132, 150);
-    public static readonly Color Cyan = Color.FromArgb(56, 214, 240);    // cofres en total
-    public static readonly Color Amber = Color.FromArgb(255, 184, 77);   // partida actual, cofres
-    public static readonly Color Mint = Color.FromArgb(61, 220, 151);    // en directo
-    public static readonly Color Accent = Color.FromArgb(56, 214, 240);  // acciones principales (cian)
-    public static readonly Color AccentHover = Color.FromArgb(118, 228, 247);
-    public static readonly Color AccentInk = Color.FromArgb(8, 22, 30);   // texto sobre el cian
-    public static readonly Color AccentSoft = Color.FromArgb(150, 230, 245); // avisos
-    public static readonly Color Blue = Color.FromArgb(56, 120, 220);    // barras del gráfico
-    public static readonly Color Rose = Color.FromArgb(255, 128, 170);   // tesoros
-    public static readonly Color Coral = Color.FromArgb(255, 99, 99);    // desactivado
+    public static readonly Color Bg = Color.FromArgb(9, 9, 11);           // window
+    public static readonly Color Card = Color.FromArgb(15, 15, 18);       // panels
+    public static readonly Color CardEdge = Color.FromArgb(42, 42, 49);   // panel border
+    public static readonly Color Panel = Color.FromArgb(19, 19, 23);      // buttons
+    public static readonly Color PanelHover = Color.FromArgb(26, 26, 32);
+    public static readonly Color Field = Color.FromArgb(10, 10, 13);      // text fields
+    public static readonly Color Line = Color.FromArgb(58, 58, 68);       // brighter border
+    public static readonly Color Ink = Color.FromArgb(236, 236, 241);
+    public static readonly Color Muted = Color.FromArgb(133, 133, 143);
+    public static readonly Color Dim = Color.FromArgb(85, 85, 94);
+    public static readonly Color Accent = Color.FromArgb(185, 168, 255);  // the one accent
+    public static readonly Color AccentHover = Color.FromArgb(203, 191, 255);
+    public static readonly Color AccentEdge = Color.FromArgb(214, 203, 255);
+    public static readonly Color AccentDeep = Color.FromArgb(122, 104, 214);
+    public static readonly Color AccentInk = Color.FromArgb(23, 19, 42);  // text on the accent
+    public static readonly Color ActiveBg = Color.FromArgb(34, 30, 54);   // selected item
+    public static readonly Color Bar = Color.FromArgb(74, 74, 85);        // chart bars of past days
+    public static readonly Color Warn = Color.FromArgb(226, 104, 58);
 
-    // Nombres usados por otras ventanas (mismo significado que antes).
-    public static Color Gold => Amber;
-    public static Color Green => Mint;
-    public static Color Red => Coral;
+    // Older names, mapped onto the palette.
+    public static Color AccentSoft => Accent;
+    public static Color Cyan => Accent;
+    public static Color Mint => Accent;
+    public static Color Amber => Ink;
+    public static Color Gold => Ink;
+    public static Color Green => Accent;
+    public static Color Red => Dim;
 
     public static Font Text(float size = 9f, FontStyle style = FontStyle.Regular) => new("Segoe UI", size, style);
 
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
 
-    /// <summary>
-    /// Barra de título oscura y esquinas redondeadas de Windows 11 (en versiones antiguas se ignora).
-    /// </summary>
+    /// <summary>Dark title bar in the window colour, square corners (Windows 11; ignored elsewhere).</summary>
     public static void Chrome(IntPtr hwnd)
     {
         try
         {
             int on = 1;
             DwmSetWindowAttribute(hwnd, 20, ref on, sizeof(int)); // DWMWA_USE_IMMERSIVE_DARK_MODE
-            DwmSetWindowAttribute(hwnd, 19, ref on, sizeof(int)); // nombre anterior de la misma opción
-            int round = 2;                                        // DWMWCP_ROUND
-            DwmSetWindowAttribute(hwnd, 33, ref round, sizeof(int)); // DWMWA_WINDOW_CORNER_PREFERENCE
+            DwmSetWindowAttribute(hwnd, 19, ref on, sizeof(int)); // older id of the same option
+            int square = 1;                                       // DWMWCP_DONOTROUND
+            DwmSetWindowAttribute(hwnd, 33, ref square, sizeof(int));
+            int caption = ColorRef(Bg), border = ColorRef(CardEdge), text = ColorRef(Muted);
+            DwmSetWindowAttribute(hwnd, 35, ref caption, sizeof(int)); // DWMWA_CAPTION_COLOR
+            DwmSetWindowAttribute(hwnd, 34, ref border, sizeof(int));  // DWMWA_BORDER_COLOR
+            DwmSetWindowAttribute(hwnd, 36, ref text, sizeof(int));    // DWMWA_TEXT_COLOR
         }
         catch
         {
-            // sin soporte: la ventana queda con el estilo normal
+            // not supported: normal window frame
         }
     }
+
+    private static int ColorRef(Color c) => c.R | (c.G << 8) | (c.B << 16);
 
     /// <summary>Botón plano con el estilo de la aplicación (usado en ajustes).</summary>
     public static void Style(Button b)

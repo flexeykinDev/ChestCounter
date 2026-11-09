@@ -19,12 +19,12 @@ public sealed class MainForm : Form
     private readonly Label _badge;
     private readonly Label _profileName;
     private readonly ComboBox _profile;
-    private readonly Label _total;
+    private readonly DotLabel _total;
     private readonly Label _totalCap;
-    private readonly Label _current;
+    private readonly DotLabel _current;
     private readonly Label _currentCap;
     private readonly Label _session;
-    private readonly Label _statToday, _statBestDay, _statAverage, _statBestMatch, _statMatches, _statTreasures;
+    private readonly DotLabel _statToday, _statBestDay, _statAverage, _statBestMatch, _statMatches, _statTreasures;
     private readonly Label _statTodayCap, _statBestDayCap, _statAverageCap, _statBestMatchCap, _statMatchesCap, _statTreasuresCap;
     private readonly Card _noticeCard;
     private readonly Label _notice;
@@ -55,11 +55,13 @@ public sealed class MainForm : Form
         StartPosition = FormStartPosition.CenterScreen;
         ClientSize = new Size(592, 332);
         Icon = AppIcon.Load();
+        DoubleBuffered = true;
 
         // Cabecera: título, perfil y distintivo.
-        Lbl(this, L.T("СЧЁТЧИК СУНДУКОВ", "CHEST COUNTER"), 8.5f, FontStyle.Bold, Theme.Cyan, new Point(LeftX, 14), new Size(202, 18));
-        _badgeCard = new Card { Location = new Point(484, 9), Size = new Size(96, 22), Radius = 11, BackColor = Theme.Panel, Visible = false };
-        _badge = Lbl(_badgeCard, "", 8.0f, FontStyle.Bold, Theme.Mint, new Point(0, 0), new Size(96, 22), ContentAlignment.MiddleCenter);
+        Pixel.Marker(this, LeftX + 1, 20);
+        Lbl(this, L.T("СЧЁТЧИК СУНДУКОВ", "CHEST COUNTER"), 8.5f, FontStyle.Bold, Theme.Ink, new Point(LeftX + 12, 14), new Size(200, 18));
+        _badgeCard = new Card { Location = new Point(474, 9), Size = new Size(106, 22), BackColor = Theme.ActiveBg, Edge = Theme.AccentDeep, Grain = false, Visible = false };
+        _badge = Lbl(_badgeCard, "", 7.5f, FontStyle.Bold, Theme.Accent, new Point(1, 1), new Size(104, 20), ContentAlignment.MiddleCenter);
         Controls.Add(_badgeCard);
 
         _profileName = Lbl(this, "", 8.0f, FontStyle.Regular, Theme.Muted, new Point(230, 11), new Size(240, 18), ContentAlignment.TopRight);
@@ -67,7 +69,7 @@ public sealed class MainForm : Form
         {
             DropDownStyle = ComboBoxStyle.DropDownList,
             FlatStyle = FlatStyle.Flat,
-            BackColor = Theme.Panel,
+            BackColor = Theme.Field,
             ForeColor = Theme.Ink,
             Font = Theme.Text(),
             Location = new Point(306, 8),
@@ -86,38 +88,40 @@ public sealed class MainForm : Form
         // Tarjeta principal: total y partida actual.
         var hero = new Card { Location = new Point(LeftX, 40), Size = new Size(LeftW, 100), Radius = 16 };
         Controls.Add(hero);
-        _total = Lbl(hero, "0", 28f, FontStyle.Bold, Theme.Cyan, new Point(15, 6), new Size(120, 50));
+        _total = Dots(hero, "0", Theme.Accent, new Point(16, 16), new Size(118, 36));
         _totalCap = Lbl(hero, L.T("сундуков всего", "chests in total"), 8.0f, FontStyle.Regular, Theme.Muted, new Point(16, 59), new Size(120, 16));
         hero.Controls.Add(new Panel { BackColor = Theme.CardEdge, Location = new Point(138, 15), Size = new Size(1, 70) });
-        _current = Lbl(hero, "—", 28f, FontStyle.Bold, Theme.Amber, new Point(151, 6), new Size(110, 50));
+        _current = Dots(hero, "—", Theme.Ink, new Point(153, 16), new Size(104, 36));
         _currentCap = Lbl(hero, L.T("последний матч", "last match"), 8.0f, FontStyle.Regular, Theme.Muted, new Point(153, 59), new Size(110, 16));
         _session = Lbl(hero, "", 8.0f, FontStyle.Regular, Theme.Ink, new Point(15, 77), new Size(243, 16));
 
         // Última partida: cofres abiertos, con los detalles (rotos, tesoros, puesto, eliminaciones).
         var last = new Card { Location = new Point(LeftX, 149), Size = new Size(LeftW, 50), Radius = 12 };
-        Lbl(last, L.T("Последний матч", "Last match"), 7.5f, FontStyle.Regular, Theme.Muted, new Point(13, 6), new Size(101, 13));
+        Pixel.Marker(last, 13, 10);
+        Lbl(last, L.T("Последний матч", "Last match"), 7.5f, FontStyle.Regular, Theme.Muted, new Point(24, 6), new Size(92, 13));
         _lastDetail = Lbl(last, "", 7.5f, FontStyle.Regular, Theme.Muted, new Point(101, 5), new Size(153, 15), ContentAlignment.MiddleRight);
-        _lastValue = Lbl(last, "—", 11.5f, FontStyle.Bold, Theme.Amber, new Point(13, 22), new Size(243, 22));
+        _lastValue = Lbl(last, "—", 11.5f, FontStyle.Bold, Theme.Ink, new Point(13, 22), new Size(243, 22));
         Controls.Add(last);
 
         // Gráfico de los últimos 7 días.
         var daily = new Card { Location = new Point(LeftX, 206), Size = new Size(LeftW, 120), Radius = 14 };
-        Lbl(daily, L.T("Последние 7 дней", "Last 7 days"), 8.0f, FontStyle.Regular, Theme.Muted, new Point(13, 7), new Size(184, 13));
-        _daily = new DailyChart { Location = new Point(9, 24), Size = new Size(246, 90), BackColor = Theme.Card };
+        Pixel.Marker(daily, 13, 11);
+        Lbl(daily, L.T("Последние 7 дней", "Last 7 days"), 8.0f, FontStyle.Regular, Theme.Muted, new Point(24, 7), new Size(184, 13));
+        _daily = new DailyChart { Location = new Point(9, 26), Size = new Size(249, 88) };
         daily.Controls.Add(_daily);
         Controls.Add(daily);
 
         // Rejilla de estadísticas: dos columnas, tres filas (columna derecha).
-        _statToday = Stat(L.T("Сегодня", "Today"), RightX, 40, Theme.Cyan, out _statTodayCap);
-        _statBestDay = Stat(L.T("Лучший день", "Best day"), RightX + 142, 40, Theme.Amber, out _statBestDayCap);
+        _statToday = Stat(L.T("Сегодня", "Today"), RightX, 40, Theme.Accent, out _statTodayCap);
+        _statBestDay = Stat(L.T("Лучший день", "Best day"), RightX + 142, 40, Theme.Ink, out _statBestDayCap);
         _statAverage = Stat(L.T("В среднем за матч", "Average per match"), RightX, 117, Theme.Ink, out _statAverageCap);
         _statBestMatch = Stat(L.T("Лучший матч", "Best match"), RightX + 142, 117, Theme.Ink, out _statBestMatchCap);
         _statMatches = Stat(L.T("История", "History"), RightX, 196, Theme.Ink, out _statMatchesCap);
         _statTreasures = Stat(L.T("Сокровища", "Treasures"), RightX + 142, 196, Theme.Ink, out _statTreasuresCap);
 
         // Aviso (versión nueva, cierre con Fortnite) o botón de actualizar: ocupa el sitio de los botones.
-        _noticeCard = new Card { Location = new Point(RightX, 277), Size = new Size(RightW, 40), Radius = 12, BackColor = Theme.Card, Visible = false };
-        _notice = Lbl(_noticeCard, "", 8.5f, FontStyle.Regular, Theme.AccentSoft, new Point(13, 0), new Size(RightW - 26, 40), ContentAlignment.MiddleLeft);
+        _noticeCard = new Card { Location = new Point(RightX, 277), Size = new Size(RightW, 40), BackColor = Theme.ActiveBg, Edge = Theme.AccentDeep, Visible = false };
+        _notice = Lbl(_noticeCard, "", 8.5f, FontStyle.Regular, Theme.Accent, new Point(13, 0), new Size(RightW - 26, 40), ContentAlignment.MiddleLeft);
         _noticeCard.Click += (_, _) => { if (_autoCloseOffer) _monitor.KeepOpen(); };
         _notice.Click += (_, _) => { if (_autoCloseOffer) _monitor.KeepOpen(); };
         Controls.Add(_noticeCard);
@@ -254,7 +258,7 @@ public sealed class MainForm : Form
         var v = s.View;
         _total.Text = v.Total;
         _current.Text = v.Current ?? "—";
-        _current.ForeColor = v.CurrentLive ? Theme.Mint : v.Current == null ? Theme.Muted : Theme.Amber;
+        _current.ForeColor = v.CurrentLive ? Theme.Accent : v.Current == null ? Theme.Dim : Theme.Ink;
         // El overlay usa textos cortos ("anterior" / "actual"); aquí hay sitio para los largos.
         _currentCap.Text = v.CurrentCaption == OverlayModel.LastMatchCaption ? L.T("последний матч", "last match")
             : v.CurrentLive && v.Current != "…" ? L.T("текущий матч", "current match")
@@ -278,13 +282,13 @@ public sealed class MainForm : Form
             : L.T("Лучший день", "Best day");
         _statAverage.Text = st.Matches > 0 ? st.Average.ToString("0.0", L.Culture) : "—";
         _statBestMatch.Text = st.Matches > 0 ? L.N(st.BestMatch) : "—";
-        _statMatches.Text = L.Count(st.HistoryMatches, "матч", "матча", "матчей", "match", "matches");
+        _statMatches.Text = L.N(st.HistoryMatches);
         _statMatchesCap.Text = st.HistorySince is { } since
-            ? L.T($"С {since:dd.MM.yy}", $"Since {since:dd/MM/yy}")
-            : L.T("История", "History");
-        _statTreasures.Text = $"{OverlayModel.TreasureIcon} {L.N(st.Treasures)}";
+            ? L.T($"Матчей · с {since:dd.MM.yy}", $"Matches · since {since:dd/MM/yy}")
+            : L.T("Матчей", "Matches");
+        _statTreasures.Text = L.N(st.Treasures);
         _overlayButton.Enabled = _monitor.OverlayEnabled;
-        _overlayButton.Indicator = _monitor.OverlayVisible ? Theme.Green : Theme.Red;
+        _overlayButton.Indicator = _monitor.OverlayVisible ? Theme.Accent : Theme.Dim;
 
         if (st.LastMatch is { } lm)
         {
@@ -345,13 +349,22 @@ public sealed class MainForm : Form
     }
 
     /// <summary>Tarjeta de estadística: título arriba y cifra debajo. Devuelve la etiqueta de la cifra.</summary>
-    private Label Stat(string caption, int x, int y, Color valueColor, out Label captionLabel)
+    private DotLabel Stat(string caption, int x, int y, Color valueColor, out Label captionLabel)
     {
-        var card = new Card { Location = new Point(x, y), Size = new Size(136, 70), Radius = 14 };
+        var card = new Card { Location = new Point(x, y), Size = new Size(136, 70) };
         Controls.Add(card);
-        captionLabel = Lbl(card, caption, 8.0f, FontStyle.Regular, Theme.Muted, new Point(12, 9), new Size(113, 15));
-        return Lbl(card, "—", 15f, FontStyle.Bold, valueColor, new Point(12, 31), new Size(117, 28));
+        captionLabel = Lbl(card, caption, 8.0f, FontStyle.Regular, Theme.Muted, new Point(12, 9), new Size(116, 15));
+        return Dots(card, "—", valueColor, new Point(13, 33), new Size(114, 27));
     }
+
+    private static DotLabel Dots(Control parent, string text, Color color, Point at, Size size)
+    {
+        var d = new DotLabel { Text = text, ForeColor = color, Location = at, Size = size };
+        parent.Controls.Add(d);
+        return d;
+    }
+
+    protected override void OnPaintBackground(PaintEventArgs e) => Pixel.Backdrop(e.Graphics, ClientSize);
 
     private PillButton Action(string text, int x)
     {
@@ -367,7 +380,7 @@ public sealed class MainForm : Form
             Text = text,
             Font = Theme.Text(size, style),
             ForeColor = color,
-            BackColor = parent.BackColor,
+            BackColor = Color.Transparent,
             Location = at,
             Size = sz,
             TextAlign = align,

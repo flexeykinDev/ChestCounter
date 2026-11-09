@@ -6,23 +6,7 @@ using System.Windows.Forms;
 
 namespace ChestCounter;
 
-/// <summary>Figuras redondeadas para los controles dibujados a mano.</summary>
-internal static class Shape
-{
-    public static GraphicsPath Rounded(RectangleF r, float radius)
-    {
-        var d = Math.Min(radius * 2, Math.Min(r.Width, r.Height));
-        var p = new GraphicsPath();
-        p.AddArc(r.X, r.Y, d, d, 180, 90);
-        p.AddArc(r.Right - d, r.Y, d, d, 270, 90);
-        p.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
-        p.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
-        p.CloseFigure();
-        return p;
-    }
-}
-
-/// <summary>Tarjeta con esquinas redondeadas y borde fino. Sus textos hijos usan el color de la tarjeta.</summary>
+/// <summary>Panel with a 1 px border, stepped pixel corners and faint grain. Child labels are transparent over it.</summary>
 [SupportedOSPlatform("windows")]
 public sealed class Card : Panel
 {
@@ -32,29 +16,30 @@ public sealed class Card : Panel
         BackColor = Theme.Card;
     }
 
-    /// <summary>Radio de las esquinas, en píxeles.</summary>
+    /// <summary>Kept for the layout code; corners are always stepped.</summary>
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-    public int Radius { get; set; } = 16;
+    public int Radius { get; set; }
+
+    /// <summary>Border colour.</summary>
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public Color Edge { get; set; } = Theme.CardEdge;
+
+    /// <summary>Film grain inside the panel.</summary>
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public bool Grain { get; set; } = true;
 
     protected override void OnPaintBackground(PaintEventArgs e)
     {
-        // Las esquinas recortadas se ven del color del fondo de la ventana.
         e.Graphics.Clear(Parent?.BackColor ?? Theme.Bg);
     }
 
     protected override void OnPaint(PaintEventArgs e)
     {
-        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-        var rect = new RectangleF(0.5f, 0.5f, Width - 1, Height - 1);
-        using var path = Shape.Rounded(rect, Radius);
-        using var fill = new SolidBrush(BackColor);
-        using var edge = new Pen(Theme.CardEdge, 1f);
-        e.Graphics.FillPath(fill, path);
-        e.Graphics.DrawPath(edge, path);
+        Pixel.Panel(e.Graphics, ClientRectangle, Edge, BackColor, Grain && Width > 20);
     }
 }
 
-/// <summary>Botón con esquinas redondeadas que se ilumina al pasar el ratón.</summary>
+/// <summary>Button with stepped corners. Accent fill = primary button; anything else = secondary.</summary>
 [SupportedOSPlatform("windows")]
 public sealed class PillButton : Button
 {
@@ -62,7 +47,7 @@ public sealed class PillButton : Button
 
     public PillButton()
     {
-        SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint | ControlStyles.SupportsTransparentBackColor, true);
+        SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint, true);
         FlatStyle = FlatStyle.Flat;
         FlatAppearance.BorderSize = 0;
         BackColor = Theme.Panel;
@@ -71,17 +56,17 @@ public sealed class PillButton : Button
         Cursor = Cursors.Hand;
     }
 
-    /// <summary>Color de fondo cuando el ratón está encima.</summary>
+    /// <summary>Fill when the mouse is over it.</summary>
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public Color HoverColor { get; set; } = Theme.PanelHover;
 
-    /// <summary>Radio de las esquinas, en píxeles.</summary>
+    /// <summary>Kept for the layout code; corners are always stepped.</summary>
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-    public int Radius { get; set; } = 12;
+    public int Radius { get; set; }
 
     private Color? _indicator;
 
-    /// <summary>Punto de estado delante del texto y borde del mismo color (null = sin indicador).</summary>
+    /// <summary>Square state marker before the text (null = none). An accent marker also lights the border.</summary>
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public Color? Indicator
     {
@@ -95,6 +80,8 @@ public sealed class PillButton : Button
             }
         }
     }
+
+    private bool Primary => BackColor.ToArgb() == Theme.Accent.ToArgb();
 
     protected override void OnMouseEnter(EventArgs e)
     {
@@ -112,46 +99,45 @@ public sealed class PillButton : Button
 
     protected override void OnPaintBackground(PaintEventArgs e)
     {
-        // Nada: OnPaint pinta el fondo redondeado completo.
+        // OnPaint draws everything.
     }
 
     protected override void OnPaint(PaintEventArgs e)
     {
         var g = e.Graphics;
-        g.SmoothingMode = SmoothingMode.AntiAlias;
         g.Clear(Parent?.BackColor ?? Theme.Bg);
-        var rect = new RectangleF(0.5f, 0.5f, Width - 1, Height - 1);
-        using var path = Shape.Rounded(rect, Radius);
-        using var fill = new SolidBrush(_hover ? HoverColor : BackColor);
-        g.FillPath(fill, path);
+        var lit = _indicator is { } ind && ind.ToArgb() == Theme.Accent.ToArgb();
+        var edge = Primary ? Theme.AccentEdge : lit ? Theme.AccentDeep : _hover ? Theme.Dim : Theme.Line;
+        var fill = _hover && Enabled ? HoverColor : BackColor;
+        if (lit && !Primary)
+        {
+            fill = _hover ? Theme.PanelHover : Theme.ActiveBg;
+        }
+        Pixel.Panel(g, ClientRectangle, edge, fill);
+        var color = Enabled ? ForeColor : Theme.Dim;
         if (_indicator is not { } dot)
         {
-            TextRenderer.DrawText(g, Text, Font, ClientRectangle, ForeColor,
+            TextRenderer.DrawText(g, Text, Font, ClientRectangle, color,
                 TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis);
             return;
         }
 
-        // Borde fino del color del estado y un punto delante del texto (todo centrado).
-        using (var edge = new Pen(Color.FromArgb(150, dot), 1.2f))
-        using (var inner = Shape.Rounded(new RectangleF(1f, 1f, Width - 2, Height - 2), Radius))
-        {
-            g.DrawPath(edge, inner);
-        }
+        // Square marker, then the text, centred together.
         var flags = TextFormatFlags.SingleLine;
         var textSize = TextRenderer.MeasureText(g, Text, Font, Size, flags);
-        var d = Math.Max(6f, Font.Height * 0.45f);
-        var gap = d * 0.8f;
-        var left = (Width - (d + gap + textSize.Width)) / 2f;
+        var d = Math.Max(6, (int)(Font.Height * 0.4f));
+        var gap = d;
+        var left = (Width - (d + gap + textSize.Width)) / 2;
         using (var brush = new SolidBrush(dot))
         {
-            g.FillEllipse(brush, left, (Height - d) / 2f, d, d);
+            g.FillRectangle(brush, left, (Height - d) / 2, d, d);
         }
-        var textRect = new Rectangle((int)(left + d + gap), 0, textSize.Width + 2, Height);
-        TextRenderer.DrawText(g, Text, Font, textRect, ForeColor, flags | TextFormatFlags.VerticalCenter);
+        var textRect = new Rectangle(left + d + gap, 0, textSize.Width + 2, Height);
+        TextRenderer.DrawText(g, Text, Font, textRect, color, flags | TextFormatFlags.VerticalCenter);
     }
 }
 
-/// <summary>Interruptor redondeado (sustituye a la casilla blanca de Windows).</summary>
+/// <summary>Pixel switch: a stepped track with a square knob.</summary>
 [SupportedOSPlatform("windows")]
 public sealed class ToggleSwitch : Control
 {
@@ -206,23 +192,62 @@ public sealed class ToggleSwitch : Control
     protected override void OnPaint(PaintEventArgs e)
     {
         var g = e.Graphics;
-        g.SmoothingMode = SmoothingMode.AntiAlias;
         g.Clear(Parent?.BackColor ?? Theme.Card);
-        var track = new RectangleF(1, 1, Width - 3, Height - 3);
-        using (var path = Shape.Rounded(track, track.Height / 2))
-        using (var fill = new SolidBrush(_checked ? Theme.Accent : Theme.Line))
+        var track = new Rectangle(0, 1, Width - 1, Height - 3);
+        var edge = _checked ? Theme.AccentDeep : Focused ? Theme.Dim : Theme.Line;
+        Pixel.Panel(g, track, edge, _checked ? Theme.ActiveBg : Theme.Field, s: 2);
+        var k = track.Height - 8;
+        var x = _checked ? track.Right - k - 4 : track.Left + 4;
+        using var knob = new SolidBrush(_checked ? Theme.Accent : Theme.Dim);
+        g.FillRectangle(knob, x, track.Top + 4, k, k);
+    }
+}
+
+/// <summary>
+/// Figure drawn with the 5×7 dot font. The dot size follows the box (largest that fits), unlit dots stay faintly
+/// visible. Transparent: the panel behind it (with its grain) shows through.
+/// </summary>
+[SupportedOSPlatform("windows")]
+public sealed class DotLabel : Control
+{
+    public DotLabel()
+    {
+        SetStyle(ControlStyles.SupportsTransparentBackColor | ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint
+            | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+        BackColor = Color.Transparent;
+    }
+
+    /// <summary>Horizontal placement inside the box.</summary>
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public HorizontalAlignment Align { get; set; } = HorizontalAlignment.Left;
+
+    protected override void OnTextChanged(EventArgs e)
+    {
+        Invalidate();
+        base.OnTextChanged(e);
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var text = Text ?? "";
+        if (text.Length == 0)
         {
-            g.FillPath(fill, path);
-            if (Focused)
-            {
-                using var ring = new Pen(Theme.AccentSoft, 1f);
-                g.DrawPath(ring, path);
-            }
+            return;
         }
-        var d = track.Height - 6;
-        var x = _checked ? track.Right - d - 3 : track.Left + 3;
-        using var knob = new SolidBrush(_checked ? Theme.AccentInk : Theme.Muted);
-        g.FillEllipse(knob, x, track.Top + 3, d, d);
+        var d = DotFont.Fit(text, ClientSize);
+        var size = DotFont.Measure(text, d);
+        var x = Align switch
+        {
+            HorizontalAlignment.Center => (Width - size.Width) / 2,
+            HorizontalAlignment.Right => Width - size.Width,
+            _ => 0,
+        };
+        var y = (Height - size.Height) / 2;
+        var under = Parent?.BackColor ?? Theme.Card;
+        using var on = new SolidBrush(ForeColor);
+        using var off = new SolidBrush(Pixel.Blend(under, Color.White, 0.055f));
+        var g = e.Graphics;
+        DotFont.Render(text, x, y, d, 1, (r, lit) => g.FillRectangle(lit ? on : off, r));
     }
 }
 

@@ -29,6 +29,8 @@ public static class NativeOverlay
     private static int[] _statW = Array.Empty<int>();
     private static IntPtr _fontHeader, _fontCaption, _fontLabel;
     private static IntPtr _brushBorder, _brushLine, _brushChip, _brushGold, _brushGreen, _brushPill;
+    private static IntPtr _brushDeep, _brushInk, _brushDim, _brushOffBg, _brushOffChip;
+    private static int _dot, _dotGap; // dot-matrix figures: dot size and gap
     private static IntPtr _fontStat;
     private static string Header => L.T("СУНДУКИ", "CHESTS");
     private static string CaptionTotal => L.T("всего", "total");
@@ -125,6 +127,23 @@ public static class NativeOverlay
         var bi = new BITMAPINFOHEADER { biSize = 40, biWidth = w, biHeight = -h, biPlanes = 1, biBitCount = 32 };
         var bgra = new byte[w * h * 4];
         GetDIBits(mem, bmp, 0, (uint)h, bgra, ref bi, 0);
+        // Outside the stepped outline the capture holds leftovers: paint it in the window background colour.
+        var shape = CreateRectRgn(0, 0, 0, 0);
+        if (GetWindowRgn(_hwnd, shape) > 1)
+        {
+            for (var py = 0; py < h; py++)
+            {
+                for (var px = 0; px < w; px++)
+                {
+                    if (!PtInRegion(shape, px, py))
+                    {
+                        var i = (py * w + px) * 4;
+                        bgra[i] = 11; bgra[i + 1] = 9; bgra[i + 2] = 9;
+                    }
+                }
+            }
+        }
+        DeleteObject(shape);
         DeleteObject(bmp);
         DeleteDC(mem);
         ReleaseDC(IntPtr.Zero, screen);
@@ -184,13 +203,20 @@ public static class NativeOverlay
         _fontCaption = CreateFontW(-S(8), 0, 0, 0, 600, 0, 0, 0, 1, 0, 0, 5, 0, "Segoe UI");
         _fontLabel = CreateFontW(-S(8), 0, 0, 0, 700, 0, 0, 0, 1, 0, 0, 5, 0, "Segoe UI");
         _fontStat = CreateFontW(-S(12), 0, 0, 0, 700, 0, 0, 0, 1, 0, 0, 5, 0, "Segoe UI");
-        _brushBg = CreateSolidBrush(Rgb(15, 19, 27));
-        _brushBorder = CreateSolidBrush(Rgb(42, 51, 68));
-        _brushLine = CreateSolidBrush(Rgb(34, 41, 56));
-        _brushChip = CreateSolidBrush(Rgb(26, 32, 45));
-        _brushGold = CreateSolidBrush(Rgb(255, 184, 77));
-        _brushGreen = CreateSolidBrush(Rgb(61, 220, 151));
-        _brushPill = CreateSolidBrush(Rgb(20, 58, 44));
+        _brushBg = CreateSolidBrush(Rgb(15, 15, 18));
+        _brushBorder = CreateSolidBrush(Rgb(42, 42, 49));
+        _brushLine = CreateSolidBrush(Rgb(31, 31, 37));
+        _brushChip = CreateSolidBrush(Rgb(19, 19, 23));
+        _brushGold = CreateSolidBrush(Rgb(185, 168, 255)); // accent
+        _brushGreen = _brushGold;
+        _brushPill = CreateSolidBrush(Rgb(34, 30, 54));
+        _brushDeep = CreateSolidBrush(Rgb(122, 104, 214));
+        _brushInk = CreateSolidBrush(Rgb(236, 236, 241));
+        _brushDim = CreateSolidBrush(Rgb(85, 85, 94));
+        _brushOffBg = CreateSolidBrush(Rgb(28, 28, 31));   // unlit dot over the panel
+        _brushOffChip = CreateSolidBrush(Rgb(32, 32, 36)); // unlit dot over the chip
+        _dot = Math.Max(2, S(3));
+        _dotGap = Math.Max(1, S(1));
         _fontIcon = CreateFontW(-S(14), 0, 0, 0, 400, 0, 0, 0, 1, 0, 0, 5, 0, "Segoe MDL2 Assets");
 
         var hInstance = GetModuleHandleW(null);
@@ -383,14 +409,15 @@ public static class NativeOverlay
         {
             // Header: "COFRES" ... [● EN DIRECTO] [lock]
             _badgeW = v.Badge != null ? TextWidth(hdc, _fontHeader, BadgeText(v.Badge), out _) + S(22) : 0;
-            var headerW = TextWidth(hdc, _fontHeader, Header, out _headerH) + S(10) + _badgeW + S(24);
+            var headerW = S(11) + TextWidth(hdc, _fontHeader, Header, out _headerH) + S(10) + _badgeW + S(24);
 
             // Big total on the left, current / last match in a rounded chip on the right.
-            _col1W = Math.Max(TextWidth(hdc, _fontBig, v.Total, out _bigH), TextWidth(hdc, _fontCaption, CaptionTotal.ToUpperInvariant(), out _captionH));
-            var currentW = Math.Max(TextWidth(hdc, _fontBig, v.Current ?? "—", out _),
+            _bigH = DotFont.Measure("0", _dot, _dotGap).Height + S(2);
+            _col1W = Math.Max(DotFont.Measure(v.Total, _dot, _dotGap).Width, TextWidth(hdc, _fontCaption, CaptionTotal.ToUpperInvariant(), out _captionH));
+            var currentW = Math.Max(Math.Max(DotFont.Measure(v.Current ?? "—", _dot, _dotGap).Width, DotFont.Measure("00", _dot, _dotGap).Width),
                 Math.Max(TextWidth(hdc, _fontCaption, v.CurrentCaption.ToUpperInvariant(), out _), TextWidth(hdc, _fontCaption, OverlayModel.LastMatchCaption.ToUpperInvariant(), out _)));
             _chipW = currentW + 2 * S(10);
-            _chipH = _bigH + _captionH + S(8);
+            _chipH = _bigH + _captionH + S(10);
             _mainH = Math.Max(_bigH + _captionH, _chipH);
             var mainW = _col1W + S(ColGap) + _chipW;
 
@@ -407,7 +434,7 @@ public static class NativeOverlay
 
             // Never shrinks: the overlay keeps the same size between a match in progress and the end of the match.
             var contentW = Math.Max(headerW, Math.Max(mainW, statsW));
-            var w0 = Math.Max(_stableW, Math.Max(S(MinWidth), contentW + 2 * S(Pad) + S(Stripe)));
+            var w0 = Math.Max(_stableW, Math.Max(S(MinWidth), contentW + 2 * S(Pad) + S(2)));
             _stableW = w0;
             var h = S(9) + _headerH + S(6) + _mainH + S(8);
             if (v.Rows.Count > 0)
@@ -431,7 +458,7 @@ public static class NativeOverlay
                 ny = Math.Max(work.Top, Math.Min(ny, work.Bottom - h));
             }
             SetWindowPos(hwnd, HWND_TOPMOST, nx, ny, w0, h, SWP_NOACTIVATE);
-            SetWindowRgn(hwnd, CreateRoundRectRgn(0, 0, w0 + 1, h + 1, S(16), S(16)), true); // window owns the region
+            SetWindowRgn(hwnd, NotchRgn(0, 0, w0, h, S(3)), true); // window owns the region
             if (nx != cur.Left || ny != cur.Top)
             {
                 _onMoved?.Invoke(nx, ny);
@@ -453,11 +480,32 @@ public static class NativeOverlay
         DrawTextW(hdc, text, -1, ref r, DT_SINGLELINE | DT_NOPREFIX | align);
     }
 
-    private static void RoundFill(IntPtr hdc, IntPtr brush, int left, int top, int right, int bottom, int radius)
+    /// <summary>Region of a rectangle with stepped pixel corners (right/bottom exclusive).</summary>
+    private static IntPtr NotchRgn(int left, int top, int right, int bottom, int step)
     {
-        var rgn = CreateRoundRectRgn(left, top, right + 1, bottom + 1, radius, radius);
-        FillRgn(hdc, rgn, brush);
-        DeleteObject(rgn);
+        var pts = Pixel.Notch(new System.Drawing.Rectangle(left, top, right - left, bottom - top), step)
+            .Select(p => new POINT { X = p.X, Y = p.Y }).ToArray();
+        return CreatePolygonRgn(pts, pts.Length, 2 /* WINDING */);
+    }
+
+    /// <summary>Stepped panel with a 1 px border.</summary>
+    private static void PixelPanel(IntPtr hdc, IntPtr edge, IntPtr fill, int left, int top, int right, int bottom, int step)
+    {
+        var outer = NotchRgn(left, top, right, bottom, step);
+        FillRgn(hdc, outer, edge);
+        DeleteObject(outer);
+        var inner = NotchRgn(left + 1, top + 1, right - 1, bottom - 1, step);
+        FillRgn(hdc, inner, fill);
+        DeleteObject(inner);
+    }
+
+    private static void Dots(IntPtr hdc, string text, int x, int y, IntPtr on, IntPtr off)
+    {
+        DotFont.Render(text, x, y, _dot, _dotGap, (r, lit) =>
+        {
+            var rc = new RECT { Left = r.Left, Top = r.Top, Right = r.Right, Bottom = r.Bottom };
+            FillRect(hdc, ref rc, lit ? on : off);
+        });
     }
 
     private static void Paint(IntPtr hwnd)
@@ -481,55 +529,55 @@ public static class NativeOverlay
         SetBkMode(hdc, TRANSPARENT);
 
         int S(int n) => (int)Math.Round(n * _scale);
-        var muted = Rgb(122, 132, 150);
-        var ink = Rgb(230, 234, 242);
-        var gold = Rgb(255, 184, 77);
-        var green = Rgb(61, 220, 151);
+        var muted = Rgb(133, 133, 143);
+        var ink = Rgb(236, 236, 241);
+        var accent = Rgb(185, 168, 255);
 
-        // Accent stripe on the left edge (gold, green during a match), clipped by the rounded window region.
-        var stripe = new RECT { Left = 0, Top = 0, Right = S(Stripe), Bottom = rc.Bottom };
-        FillRect(hdc, ref stripe, v.CurrentLive ? _brushGreen : _brushGold);
-
-        // Thin border following the rounded shape.
-        var border = CreateRoundRectRgn(0, 0, rc.Right + 1, rc.Bottom + 1, S(16), S(16));
+        // 1 px border following the stepped outline.
+        var border = NotchRgn(0, 0, rc.Right, rc.Bottom, S(3));
         FrameRgn(hdc, border, _brushBorder, 1, 1);
         DeleteObject(border);
 
-        var x = S(Stripe) + S(Pad);
+        var x = S(Pad) + S(1);
         var right = rc.Right - S(Pad);
         var y = S(9);
 
-        // Header: title, state pill, lock button (Segoe MDL2 Assets: E785 = open padlock, E72E = closed padlock).
-        Text(hdc, _fontHeader, muted, Header, x, y, right, y + _headerH);
+        // Header: square marker, title, state chip, lock button (Segoe MDL2 Assets: E785 = open padlock, E72E = closed padlock).
+        var m = S(6);
+        var my = y + (_headerH - m) / 2;
+        var marker = new RECT { Left = x, Top = my, Right = x + m, Bottom = my + m };
+        FillRect(hdc, ref marker, _brushGold);
+        Text(hdc, _fontHeader, muted, Header, x + S(11), y, right, y + _headerH);
         if (v.Badge != null)
         {
             var pr = _lockRect.Left - S(6);
             var pl = pr - _badgeW;
-            RoundFill(hdc, _brushPill, pl, y - S(3), pr, y + _headerH + S(3), _headerH + S(6));
-            var dot = S(7);
+            PixelPanel(hdc, _brushDeep, _brushPill, pl, y - S(3), pr, y + _headerH + S(3), S(2));
+            var dot = S(6);
             var dy = y + (_headerH - dot) / 2;
-            var dotRgn = CreateEllipticRgn(pl + S(7), dy, pl + S(7) + dot + 1, dy + dot + 1);
-            FillRgn(hdc, dotRgn, _brushGreen);
-            DeleteObject(dotRgn);
-            Text(hdc, _fontHeader, green, BadgeText(v.Badge), pl + S(17), y, pr, y + _headerH);
+            var sq = new RECT { Left = pl + S(7), Top = dy, Right = pl + S(7) + dot, Bottom = dy + dot };
+            FillRect(hdc, ref sq, _brushGold);
+            Text(hdc, _fontHeader, accent, BadgeText(v.Badge), pl + S(17), y, pr, y + _headerH);
         }
         SelectObject(hdc, _fontIcon);
-        SetTextColor(hdc, _locked ? Rgb(86, 96, 114) : Rgb(200, 206, 218));
+        SetTextColor(hdc, _locked ? Rgb(85, 85, 94) : Rgb(200, 200, 210));
         var lr = _lockRect;
         DrawTextW(hdc, _locked ? "\uE72E" : "\uE785", -1, ref lr, DT_SINGLELINE | DT_CENTER | DT_VCENTER | DT_NOPREFIX);
         y += _headerH + S(6);
 
-        // Total (left) and current / last match chip (right).
+        // Total (left, dot-matrix in the accent) and current / last match chip (right).
         var ty = y + (_mainH - _bigH - _captionH) / 2;
-        Text(hdc, _fontBig, gold, v.Total, x - S(1), ty, x + _col1W + S(4), ty + _bigH);
+        Dots(hdc, v.Total, x, ty + S(1), _brushGold, _brushOffBg);
         Text(hdc, _fontCaption, muted, CaptionTotal.ToUpperInvariant(), x, ty + _bigH, x + _col1W + S(4), ty + _bigH + _captionH);
 
         var cl = right - _chipW;
         var ct = y + (_mainH - _chipH) / 2;
-        RoundFill(hdc, _brushChip, cl, ct, right, ct + _chipH, S(10));
-        var currentColor = v.Current == null ? Rgb(80, 88, 104) : v.CurrentLive ? green : ink;
-        Text(hdc, _fontBig, currentColor, v.Current ?? "—", cl, ct + S(3), right, ct + S(3) + _bigH, DT_CENTER);
-        Text(hdc, _fontCaption, v.CurrentLive ? green : muted, v.CurrentCaption.ToUpperInvariant(), cl, ct + S(3) + _bigH, right, ct + S(3) + _bigH + _captionH, DT_CENTER);
+        PixelPanel(hdc, _brushBorder, _brushChip, cl, ct, right, ct + _chipH, S(3));
+        var current = v.Current ?? "—";
+        var cw = DotFont.Measure(current, _dot, _dotGap).Width;
+        var currentBrush = v.Current == null ? _brushDim : v.CurrentLive ? _brushGold : _brushInk;
+        Dots(hdc, current, cl + (_chipW - cw) / 2, ct + S(5), currentBrush, _brushOffChip);
+        Text(hdc, _fontCaption, v.CurrentLive ? accent : muted, v.CurrentCaption.ToUpperInvariant(), cl, ct + S(5) + _bigH, right, ct + S(5) + _bigH + _captionH, DT_CENTER);
         y += _mainH + S(8);
 
         // Stats strip: columns spread over the whole width.
@@ -547,7 +595,7 @@ public static class NativeOverlay
                 var colRight = i == v.Rows.Count - 1 ? right + S(4) : cx + _statW[i] + S(4);
                 Text(hdc, _fontLabel, muted, row.Label.ToUpperInvariant(), cx, y, colRight, y + _captionH);
                 var vy = y + _captionH + S(1);
-                Text(hdc, _fontStat, row.Treasure ? Rgb(255, 128, 170) : ink, row.Value, cx, vy, colRight, vy + _statH);
+                Text(hdc, _fontStat, ink, row.Value, cx, vy, colRight, vy + _statH);
                 cx += _statW[i] + gap;
             }
         }
@@ -647,6 +695,10 @@ public static class NativeOverlay
     private static extern IntPtr CreateFontW(int height, int width, int escapement, int orientation, int weight, uint italic, uint underline, uint strikeOut, uint charSet, uint outPrecision, uint clipPrecision, uint quality, uint pitchAndFamily, string face);
     [DllImport("gdi32.dll")] private static extern IntPtr CreateSolidBrush(uint color);
     [DllImport("gdi32.dll")] private static extern IntPtr CreateRoundRectRgn(int x1, int y1, int x2, int y2, int w, int h);
+    [DllImport("gdi32.dll")] private static extern IntPtr CreatePolygonRgn(POINT[] points, int count, int mode);
+    [DllImport("gdi32.dll")] private static extern IntPtr CreateRectRgn(int x1, int y1, int x2, int y2);
+    [DllImport("gdi32.dll")] private static extern bool PtInRegion(IntPtr rgn, int x, int y);
+    [DllImport("user32.dll")] private static extern int GetWindowRgn(IntPtr hwnd, IntPtr rgn);
     [DllImport("gdi32.dll")] private static extern IntPtr SelectObject(IntPtr hdc, IntPtr obj);
     [StructLayout(LayoutKind.Sequential)]
     private struct BITMAPINFOHEADER
