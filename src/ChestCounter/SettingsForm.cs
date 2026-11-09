@@ -95,7 +95,7 @@ public sealed class SettingsForm : Form
                     L.T("Настройки", "Settings"), MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         };
-        _report = AddToggleRow(start, L.T("Открывать отчёт при запуске", "Open the report at startup"), null, 64, config.OpenReportOnStart);
+        _report = AddToggleRow(start, L.T("Отчёт при запуске", "Open the report at startup"), null, 64, config.OpenReportOnStart);
         _report.CheckedChanged += (_, _) => { if (!_loading) _monitor.Change(c => c.OpenReportOnStart = _report.Checked); };
 
         // Local OBS page: off by default, only reachable from this PC.
@@ -165,8 +165,8 @@ public sealed class SettingsForm : Form
         var stateCard = new Card { Location = new Point(RightW - 13 - 70, 6), Size = new Size(70, 18), Radius = 9, BackColor = Theme.Panel };
         _obsState = Lbl(stateCard, "", 7.0f, FontStyle.Bold, Theme.Red, new Point(0, 0), new Size(70, 18), ContentAlignment.MiddleCenter);
         obsCard.Controls.Add(stateCard);
-        _obsField = AddField(obsCard, new Point(13, 30), RightW - 26 - 72, "");
-        _obsCopy = new PillButton { Text = L.T("Копировать", "Copy"), Location = new Point(RightW - 13 - 66, 30), Size = new Size(66, 30), Radius = 10, Font = Theme.Text(8.5f, FontStyle.Bold) };
+        _obsField = AddField(obsCard, new Point(13, 30), RightW - 26 - 92, "");
+        _obsCopy = new PillButton { Text = L.T("Копировать", "Copy"), Location = new Point(RightW - 13 - 86, 30), Size = new Size(86, 30), Radius = 10, Font = Theme.Text(8.5f, FontStyle.Bold) };
         _obsCopy.Click += (_, _) =>
         {
             if (ObsServer.Url is not { } url)
@@ -190,7 +190,7 @@ public sealed class SettingsForm : Form
         // Atajos del overlay.
         var keys = AddCard(RightX, 232, RightW, 45, 12);
         Lbl(keys, L.T("Горячие клавиши оверлея", "Overlay shortcuts"), 7.5f, FontStyle.Regular, Theme.Muted, new Point(13, 6), new Size(RightW - 26, 13));
-        Lbl(keys, L.T("Ctrl+Shift+O показать  ·  Ctrl+Shift+L закрепить", "Ctrl+Shift+O show  ·  Ctrl+Shift+L lock"),
+        Lbl(keys, L.T("Ctrl+Shift+O показ · Ctrl+Shift+L замок", "Ctrl+Shift+O show  ·  Ctrl+Shift+L lock"),
             8.0f, FontStyle.Bold, Theme.Ink, new Point(13, 21), new Size(RightW - 26, 18));
 
         // Cerrar, en el sitio de los botones de la ventana principal.
