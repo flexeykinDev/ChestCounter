@@ -6,6 +6,12 @@ Counts the chests you open in Fortnite by reading your replay files. Shows an ov
 
 This is a fork of [xdoofy92/ChestCounter](https://github.com/xdoofy92/ChestCounter) with a Russian and English interface and no internet access.
 
+[![Download](https://img.shields.io/github/v/release/flexeykinDev/ChestCounter?label=download&style=for-the-badge&color=b9a8ff&labelColor=17132a)](https://github.com/flexeykinDev/ChestCounter/releases/latest/download/ChestCounter.exe)
+
+**[Download ChestCounter.exe](https://github.com/flexeykinDev/ChestCounter/releases/latest/download/ChestCounter.exe)** · Windows 10 / 11 · no install · [all versions](https://github.com/flexeykinDev/ChestCounter/releases)
+
+Windows may show "Windows protected your PC" because the exe is not signed: "More info" → "Run anyway". If you would rather not trust a prebuilt file, build it yourself (see "Building").
+
 <img src="docs/main.png" alt="Main window" width="600">
 
 <img src="docs/overlay.png" alt="Overlay: between matches, in a match, live" width="680">

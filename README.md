@@ -6,6 +6,12 @@
 
 Это форк [xdoofy92/ChestCounter](https://github.com/xdoofy92/ChestCounter) с русским и английским интерфейсом и без выхода в интернет.
 
+[![Скачать](https://img.shields.io/github/v/release/flexeykinDev/ChestCounter?label=%D1%81%D0%BA%D0%B0%D1%87%D0%B0%D1%82%D1%8C&style=for-the-badge&color=b9a8ff&labelColor=17132a)](https://github.com/flexeykinDev/ChestCounter/releases/latest/download/ChestCounter.exe)
+
+**[Скачать ChestCounter.exe](https://github.com/flexeykinDev/ChestCounter/releases/latest/download/ChestCounter.exe)** · Windows 10 / 11 · без установки · [все версии](https://github.com/flexeykinDev/ChestCounter/releases)
+
+Windows может показать «Система Windows защитила ваш компьютер», потому что exe не подписан: «Подробнее» → «Выполнить в любом случае». Если не доверяете готовому файлу, соберите его сами (см. «Сборка»).
+
 <img src="docs/main.png" alt="Главное окно" width="600">
 
 <img src="docs/overlay.png" alt="Оверлей: между матчами, в матче, в эфире" width="680">
